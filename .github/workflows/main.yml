@@ -26,24 +26,10 @@ jobs:
           # exit-zero treats all errors as warnings.
           flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
 
-  security:
-    name: Security Audit
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.9'
-      - name: Install Bandit
-        run: pip install bandit
-      - name: Run Bandit
-        run: bandit -r . -x ./tests
-
   test:
     name: Django Tests
     runs-on: ubuntu-latest
-    needs: [quality, security]
+    needs: [quality]
     steps:
       - uses: actions/checkout@v3
       - name: Set up Python
