@@ -1,0 +1,43 @@
+{% extends 'approval_system/base.html' %}
+
+{% block title %}Upload Document - Cloud Approval System{% endblock %}
+
+{% block content %}
+<div class="dashboard-header">
+    <h1><i class="fa-solid fa-file-arrow-up" style="color: var(--primary);"></i> Submit New Document</h1>
+</div>
+
+<div class="card" style="max-width: 600px; margin: 0 auto;">
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <div class="form-group">
+            <label for="title"><i class="fa-solid fa-heading"></i> Document Title</label>
+            <input type="text" name="title" id="title" placeholder="Enter document name" required>
+        </div>
+        <div class="form-group">
+            <label for="description"><i class="fa-solid fa-align-left"></i> Description / Purpose</label>
+            <textarea name="description" id="description" rows="3" placeholder="Briefly describe what this document is for..."></textarea>
+        </div>
+        <div class="form-group">
+            <label for="category"><i class="fa-solid fa-tags"></i> Category</label>
+            <input type="text" name="category" id="category" placeholder="e.g. Finance, HR, Project X">
+        </div>
+        <div class="form-group">
+            <label for="approver_id"><i class="fa-solid fa-user-shield"></i> Select Level 1 Reviewer</label>
+            <select name="approver_id" id="approver_id" required>
+                {% for approver in approvers %}
+                    <option value="{{ approver.id }}">{{ approver.username }} ({{ approver.email }})</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="document_file"><i class="fa-solid fa-paperclip"></i> Select File</label>
+            <input type="file" name="document_file" id="document_file" required>
+        </div>
+        <div style="display: flex; gap: 1rem; margin-top: 2rem;">
+            <button type="submit" class="btn btn-primary" style="flex: 1;"><i class="fa-solid fa-paper-plane"></i> Upload & Submit</button>
+            <a href="{% url 'request_dashboard' %}" class="btn" style="color: var(--text-muted);"><i class="fa-solid fa-xmark"></i> Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

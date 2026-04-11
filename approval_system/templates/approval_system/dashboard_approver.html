@@ -1,0 +1,55 @@
+{% extends 'approval_system/base.html' %}
+
+{% block title %}Reviewer Dashboard (Level 1) - Cloud Approval System{% endblock %}
+
+{% block content %}
+<div class="dashboard-header">
+    <h1>L1 Verification Queue</h1>
+</div>
+
+<div class="card">
+    {% if requests %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Document</th>
+                    <th>Requested By</th>
+                    <th>Submited</th>
+                    <th style="text-align: right;">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for req in requests %}
+                <tr>
+                    <td>
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <i class="fa-solid fa-file-contract fa-2x" style="color: #64748b;"></i>
+                            <div>
+                                <div style="font-weight: 600;">{{ req.document.title }}</div>
+                                <div style="font-size: 0.75rem; color: var(--text-muted);">{{ req.document.file_name }}</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                         <div style="font-weight: 500;"><i class="fa-solid fa-circle-user text-muted"></i> {{ req.document.uploader.username }}</div>
+                         <div style="font-size: 0.75rem; color: var(--text-muted);">{{ req.document.uploader.email }}</div>
+                    </td>
+                    <td>
+                        <div style="font-size: 0.85rem;"><i class="fa-regular fa-clock text-muted"></i> {{ req.updated_at|date:"M d, Y" }}</div>
+                    </td>
+                    <td style="text-align: right;">
+                        <a href="{% url 'process_approval' req.id %}" class="btn btn-primary"><i class="fa-solid fa-magnifying-glass"></i> Review & Action</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <div style="text-align: center; padding: 4rem 0;">
+            <i class="fa-solid fa-check-circle fa-4x" style="color: #d1fae5; margin-bottom: 1rem;"></i>
+            <h3>All Caught Up!</h3>
+            <p style="color: var(--text-muted);">There are no documents waiting for your verification at the moment.</p>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

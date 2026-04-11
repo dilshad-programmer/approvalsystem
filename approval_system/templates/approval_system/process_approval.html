@@ -1,0 +1,67 @@
+{% extends 'approval_system/base.html' %}
+
+{% block title %}Process Approval - Cloud Approval System{% endblock %}
+
+{% block content %}
+<div class="dashboard-header">
+    <h1><i class="fa-solid fa-file-signature" style="color: var(--primary);"></i> Review & Action</h1>
+</div>
+
+<div class="card">
+    <div style="margin-bottom: 2rem; border-bottom: 1px solid var(--border-subtle); padding-bottom: 2rem; display: flex; gap: 2rem; align-items: flex-start;">
+        <div style="background: #f8fafc; padding: 2.5rem; border-radius: 12px; border: 1px dashed var(--border-subtle); text-align: center;">
+            <i class="fa-solid fa-file-pdf fa-4x" style="color: #64748b;"></i>
+            <div style="margin-top: 1rem;">
+                <a href="{{ request.document.fresh_url }}" target="_blank" class="btn btn-primary"><i class="fa-solid fa-eye"></i> View Full Document</a>
+            </div>
+        </div>
+        
+        <div style="flex: 1;">
+            <h2 style="margin-bottom: 0.5rem; color: var(--text-main);">{{ request.document.title }}</h2>
+            <div style="margin-bottom: 1.5rem;">
+                <span class="status-pill" style="background: #f1f5f9; color: var(--text-muted); font-size: 0.8rem;">
+                    <i class="fa-solid fa-tag"></i> {{ request.document.category|default:"General" }}
+                </span>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+                <div>
+                    <label style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Submitted By</label>
+                    <div style="font-weight: 500;">{{ request.document.uploader.username }}</div>
+                </div>
+                <div>
+                    <label style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Date Submitted</label>
+                    <div style="font-weight: 500;">{{ request.document.uploaded_at|date:"M d, Y" }}</div>
+                </div>
+            </div>
+            
+            <div style="margin-top: 1.5rem;">
+                <label style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Uploader Notes</label>
+                <p style="color: #475569; font-size: 0.95rem; margin-top: 0.25rem;">{{ request.document.description|default:"No description provided." }}</p>
+            </div>
+        </div>
+    </div>
+
+    <form method="post">
+        {% csrf_token %}
+        <div class="form-group">
+            <label for="comments" style="color: var(--text-main); font-weight: 600;">Your Review Comments</label>
+            <textarea name="comments" id="comments" rows="4" placeholder="Mention why you are approving/rejecting this document..." required></textarea>
+        </div>
+        
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--border-subtle);">
+             <a href="javascript:history.back()" class="btn" style="color: var(--text-muted);"><i class="fa-solid fa-arrow-left"></i> Back to Dashboard</a>
+             
+             <div style="display: flex; gap: 1rem;">
+                <button type="submit" name="action" value="REJECTED" class="btn btn-danger"><i class="fa-solid fa-xmark"></i> Reject Document</button>
+                
+                {% if user.userprofile.role == 'REVIEWER' %}
+                    <button type="submit" name="action" value="VERIFIED" class="btn btn-primary" style="background: var(--success); border: none;"><i class="fa-solid fa-check-double"></i> Verify & Forward</button>
+                {% elif user.userprofile.role == 'ADMIN' %}
+                    <button type="submit" name="action" value="APPROVED" class="btn btn-primary"><i class="fa-solid fa-stamp"></i> Final Approval</button>
+                {% endif %}
+             </div>
+        </div>
+    </form>
+</div>
+{% endblock %}

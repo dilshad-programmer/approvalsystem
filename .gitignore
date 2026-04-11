@@ -1,0 +1,21 @@
+# --- Environment & Sensitive Data ---
+.env
+db.sqlite3
+*.log
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/
+env/
+.env/
+
+# --- IDEs ---
+.vscode/
+.idea/
+
+# --- Project Specific ---
+approval_system/migrations/
+static/admin/

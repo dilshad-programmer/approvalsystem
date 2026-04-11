@@ -1,0 +1,38 @@
+{% extends 'approval_system/base.html' %}
+
+{% block title %}Confirm Deletion - Cloud Approval System{% endblock %}
+
+{% block content %}
+<div class="dashboard-header" style="justify-content: center; margin-top: 4rem;">
+    <h1 style="color: var(--danger);"><i class="fa-solid fa-triangle-exclamation"></i> Danger Zone</h1>
+</div>
+
+<div class="card" style="max-width: 550px; margin: 0 auto; text-align: center; border-top: 5px solid var(--danger); padding: 3rem;">
+    <div style="background: #fee2e2; width: 80px; height: 80px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 2rem;">
+        <i class="fa-solid fa-trash-can fa-2x" style="color: var(--danger);"></i>
+    </div>
+    
+    <h2 style="margin-bottom: 1rem;">Delete this Document?</h2>
+    <p style="color: var(--text-muted); line-height: 1.6; margin-bottom: 2.5rem;">
+        You are about to permanently delete <strong>"{{ document.title }}"</strong>.<br>
+        This action will purge the record from the database and remove the physical file from <strong>Amazon S3</strong> storage.
+    </p>
+
+    <form method="POST">
+        {% csrf_token %}
+        <div style="display: flex; flex-direction: column; gap: 1rem;">
+            <button type="submit" class="btn btn-danger" style="width: 100%; justify-content: center; padding: 1rem;">
+                <i class="fa-solid fa-fire-extinguisher"></i> Yes, Delete Permanently
+            </button>
+            <a href="javascript:history.back()" class="btn" style="border: 1px solid var(--border-subtle); width: 100%; justify-content: center; padding: 1rem; color: var(--text-muted);">
+                <i class="fa-solid fa-xmark"></i> Cancel and Go Back
+            </a>
+        </div>
+    </form>
+</div>
+
+<div style="max-width: 550px; margin: 2rem auto; padding: 1rem; background: #f8fafc; border-left: 4px solid var(--info); border-radius: 4px; font-size: 0.85rem; color: var(--text-muted);">
+    <i class="fa-solid fa-info-circle" style="color: var(--info);"></i> 
+    <strong>Safety Audit:</strong> This deletion event will be automatically recorded in the DynamoDB global archive for compliance tracking.
+</div>
+{% endblock %}

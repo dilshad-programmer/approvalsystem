@@ -1,0 +1,67 @@
+{% extends 'approval_system/base.html' %}
+
+{% block title %}Requester Dashboard - Cloud Approval System{% endblock %}
+
+{% block content %}
+<div class="dashboard-header">
+    <h1>My Documents</h1>
+    <a href="{% url 'upload_document' %}" class="btn btn-primary"><i class="fa-solid fa-plus"></i> New Upload</a>
+</div>
+
+<div class="card">
+    {% if documents %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Document Details</th>
+                    <th>Category</th>
+                    <th>Timeline</th>
+                    <th>Workflow Status</th>
+                    <th style="text-align: right;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for doc in documents %}
+                <tr>
+                    <td>
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <i class="fa-solid fa-file-pdf fa-2x" style="color: #64748b;"></i>
+                            <div>
+                                <div style="font-weight: 600; color: var(--text-main);">{{ doc.title }}</div>
+                                <div style="font-size: 0.75rem; color: var(--text-muted);">{{ doc.file_name }}</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td><span class="btn" style="background: #f1f5f9; padding: 0.2rem 0.6rem; font-size: 0.75rem; color: var(--text-muted); pointer-events: none;">{{ doc.category|default:"General" }}</span></td>
+                    <td>
+                        <div style="font-size: 0.85rem;"><i class="fa-regular fa-calendar-check text-muted"></i> {{ doc.uploaded_at|date:"M d, Y" }}</div>
+                        <div style="font-size: 0.7rem; color: var(--text-muted);">{{ doc.uploaded_at|time:"H:i" }}</div>
+                    </td>
+                    <td>
+                        {% with req=doc.approval_requests.last %}
+                            <span class="status-pill status-{{ req.status|lower }}">
+                                {% if req.status == 'PENDING_REVIEW' %}<i class="fa-solid fa-clock-rotate-left"></i>
+                                {% elif req.status == 'PENDING_ADMIN' %}<i class="fa-solid fa-user-check"></i>
+                                {% elif req.status == 'APPROVED' %}<i class="fa-solid fa-circle-check"></i>
+                                {% elif req.status == 'REJECTED' %}<i class="fa-solid fa-circle-xmark"></i>{% endif %}
+                                {{ req.get_status_display }}
+                            </span>
+                        {% endwith %}
+                    </td>
+                    <td style="text-align: right;">
+                        <a href="{% url 'document_history' doc.id %}" class="btn" title="View History" style="padding: 0.5rem;"><i class="fa-solid fa-clock-history" style="color: var(--info);"></i></a>
+                        <a href="{{ doc.fresh_url }}" target="_blank" class="btn" title="Download" style="padding: 0.5rem;"><i class="fa-solid fa-download" style="color: var(--success);"></i></a>
+                        <a href="{% url 'delete_document' doc.id %}" class="btn" title="Delete" style="padding: 0.5rem;"><i class="fa-solid fa-trash-can" style="color: var(--danger);"></i></a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <div style="text-align: center; padding: 3rem 0;">
+            <i class="fa-solid fa-cloud-arrow-up fa-4x" style="color: #e2e8f0; margin-bottom: 1rem;"></i>
+            <p style="color: var(--text-muted);">No documents uploaded yet. Start by uploading your first document.</p>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

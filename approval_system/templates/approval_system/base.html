@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Cloud Approval System{% endblock %}</title>
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'style.css' %}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="logo-container">
+            <a href="/" style="display: flex; align-items: center; gap: 10px; text-decoration: none;">
+                <span style="color: white; font-size: 1.25rem; font-weight: 700; letter-spacing: -0.5px;">DOC<span style="color: var(--primary-light);">APPROVE</span></span>
+            </a>
+        </div>
+        <div class="nav-links">
+            {% if user.is_authenticated %}
+                <span style="margin-right: 1rem; color: #94a3b8; font-size: 0.85rem;"><i class="fa-solid fa-circle-user"></i> {{ user.username }}</span>
+                {% if user.userprofile.role == 'REQUESTER' %}
+                    <a href="{% url 'request_dashboard' %}"><i class="fa-solid fa-chart-line"></i> Dashboard</a>
+                    <a href="{% url 'upload_document' %}"><i class="fa-solid fa-cloud-arrow-up"></i> Upload</a>
+                {% elif user.userprofile.role == 'REVIEWER' %}
+                    <a href="{% url 'approver_dashboard' %}"><i class="fa-solid fa-list-check"></i> Verification Queue</a>
+                {% elif user.userprofile.role == 'ADMIN' %}
+                    <a href="{% url 'admin_dashboard' %}"><i class="fa-solid fa-lock"></i> Admin Home</a>
+                {% endif %}
+                <a href="{% url 'logout' %}" style="color: #f87171;"><i class="fa-solid fa-right-from-bracket"></i> Logout</a>
+            {% else %}
+                <a href="{% url 'login' %}">Login</a>
+                <a href="{% url 'register' %}">Register</a>
+            {% endif %}
+        </div>
+    </nav>
+
+    <div class="container">
+        {% if messages %}
+            <ul class="messages">
+                {% for message in messages %}
+                    <li class="{{ message.tags }}">{{ message.message }}</li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+
+        {% block content %}
+        {% endblock %}
+    </div>
+
+    <footer style="text-align: center; margin-top: 3rem; padding: 2rem; color: #7f8c8d; font-size: 0.9rem;">
+        &copy; 2024 Cloud Document Approval System - Beginner Friendly Project
+    </footer>
+</body>
+</html>

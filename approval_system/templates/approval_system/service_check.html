@@ -1,0 +1,53 @@
+{% extends 'approval_system/base.html' %}
+
+{% block title %}System Diagnostics - Admin{% endblock %}
+
+{% block content %}
+<div class="dashboard-header">
+    <h1><i class="fa-solid fa-microchip" style="color: var(--primary);"></i> Cloud System Diagnostics</h1>
+    <div style="display: flex; gap: 1rem;">
+         <button onclick="location.reload()" class="btn" style="background: #f1f5f9; color: var(--text-main);"><i class="fa-solid fa-sync"></i> Refresh Check</button>
+         <a href="{% url 'admin_dashboard' %}" class="btn btn-primary"><i class="fa-solid fa-arrow-left"></i> Exit to Dashboard</a>
+    </div>
+</div>
+
+<div class="card" style="background: #f8fafc; border: 1px dashed var(--border-subtle); margin-bottom: 2rem;">
+    <p style="color: var(--text-muted); font-size: 0.95rem;">
+        <i class="fa-solid fa-circle-info" style="color: var(--info);"></i> This panel verifies live connectivity to all AWS resources configured in your <code>.env</code> file.
+    </p>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem;">
+    {% for service, info in status.items %}
+    <div class="card" style="margin-bottom: 0; border-top: 4px solid {% if info.active %}var(--success){% else %}var(--danger){% endif %}; transition: transform 0.2s ease;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem;">
+            <h3 style="text-transform: uppercase; font-size: 1rem; color: var(--text-muted);">{{ service }}</h3>
+            <span class="status-pill {% if info.active %}status-approved{% else %}status-rejected{% endif %}">
+                {% if info.active %}<i class="fa-solid fa-circle-check"></i> Connected{% else %}<i class="fa-solid fa-circle-xmark"></i> Inactive / Error{% endif %}
+            </span>
+        </div>
+        
+        <div style="background: #f1f5f9; padding: 1rem; border-radius: 8px; font-size: 0.85rem; font-family: monospace; color: var(--text-main); min-height: 80px;">
+            {{ info.message }}
+        </div>
+        
+        <div style="margin-top: 1rem; font-size: 0.75rem; color: var(--text-muted);">
+            {% if service == 's3' %}Verifies bucket visibility and CORS policies.{% endif %}
+            {% if service == 'dynamodb' %}Checks for 'DocumentApprovalLogs' table state.{% endif %}
+            {% if service == 'ses' %}Verifies sender identity and verified status.{% endif %}
+            {% if service == 'lambda' %}Checks reachability of the background handler.{% endif %}
+            {% if service == 'cognito' %}Verifies user pool reachability.{% endif %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="card" style="margin-top: 2.5rem; background: #fffcf0; border-color: #fde68a;">
+    <h3 style="color: #92400e; margin-bottom: 1rem;"><i class="fa-solid fa-lightbulb"></i> Optimization Guide</h3>
+    <ul style="color: #92400e; font-size: 0.9rem; padding-left: 1.5rem; line-height: 1.6;">
+        <li><strong>SES Issues?</strong> Ensure the email in <code>AWS_SES_SOURCE_EMAIL</code> is verified in the AWS console.</li>
+        <li><strong>Lambda Inactive?</strong> Run <code>python deploy_lambda.py</code> to automatically provision the function.</li>
+        <li><strong>403 Access Denied?</strong> Check your <code>AWS_SESSION_TOKEN</code> if you are using temporary lab credentials.</li>
+    </ul>
+</div>
+{% endblock %}
