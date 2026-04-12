@@ -11,6 +11,7 @@ urlpatterns = [
     path('dashboard/requester/', views.request_dashboard, name='request_dashboard'),
     path('dashboard/approver/', views.approver_dashboard, name='approver_dashboard'),
     path('dashboard/admin/', views.admin_dashboard, name='admin_dashboard'),
+    path('admin/update-role/<int:user_id>/', views.update_user_role, name='update_user_role'),
     
     # Actions
     path('upload/', views.upload_document, name='upload_document'),

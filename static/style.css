@@ -16,6 +16,11 @@
     --warning: #f59e0b;
     --danger: #ef4444;
     --info: #3b82f6;
+
+    /* Role Themes */
+    --requester-brand: #0d9488; /* Teal */
+    --reviewer-brand: #4f46e5;  /* Indigo */
+    --admin-brand: #334155;     /* Slate */
     
     /* UI Elements */
     --glass-bg: rgba(255, 255, 255, 0.85);
@@ -43,6 +48,15 @@ h1, h2, h3, .logo-text {
     font-family: 'Outfit', sans-serif;
     font-weight: 600;
 }
+
+/* --- Role Based Themes --- */
+body.theme-requester { --primary: var(--requester-brand); --primary-dark: #0f766e; }
+body.theme-reviewer  { --primary: var(--reviewer-brand); --primary-dark: #3730a3; }
+body.theme-admin     { --primary: var(--admin-brand); --primary-dark: #1e293b; }
+
+.navbar.theme-requester { background: linear-gradient(to right, #0f172a, #0d9488); }
+.navbar.theme-reviewer  { background: linear-gradient(to right, #0f172a, #4f46e5); }
+.navbar.theme-admin     { background: linear-gradient(to right, #0f172a, #334155); }
 
 /* --- Layout --- */
 .navbar {

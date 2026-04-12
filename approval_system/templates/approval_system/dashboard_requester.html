@@ -3,8 +3,18 @@
 {% block title %}Requester Dashboard - Cloud Approval System{% endblock %}
 
 {% block content %}
+<div class="card" style="background: linear-gradient(135deg, #0d9488, #0f766e); color: white; border: none; margin-bottom: 2.5rem;">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+        <div>
+            <h1 style="color: white; margin-bottom: 0.5rem;">Welcome back, {{ user.username }}!</h1>
+            <p style="opacity: 0.9;">You have **{{ documents|length }}** documents in your personal cloud repository.</p>
+        </div>
+        <i class="fa-solid fa-cloud-bolt fa-4x" style="opacity: 0.2;"></i>
+    </div>
+</div>
+
 <div class="dashboard-header">
-    <h1>My Documents</h1>
+    <h2><i class="fa-solid fa-folder-open text-muted"></i> My Documents</h2>
     <a href="{% url 'upload_document' %}" class="btn btn-primary"><i class="fa-solid fa-plus"></i> New Upload</a>
 </div>
 

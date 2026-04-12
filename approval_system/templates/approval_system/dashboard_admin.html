@@ -3,8 +3,20 @@
 {% block title %}Admin Dashboard - Cloud Approval System{% endblock %}
 
 {% block content %}
+<div class="card" style="background: linear-gradient(135deg, #1e293b, #334155); color: white; border: none; margin-bottom: 2.5rem;">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+        <div>
+            <h1 style="color: white; margin-bottom: 0.5rem;">Admin Command Center</h1>
+            <p style="opacity: 0.9;">Total Managed Users: **{{ users|length }}** | Global Documents: **{{ documents|length }}**</p>
+        </div>
+        <div style="text-align: right;">
+            <a href="{% url 'service_check' %}" class="btn" style="background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2);"><i class="fa-solid fa-signal"></i> Service Integrity Check</a>
+        </div>
+    </div>
+</div>
+
 <div class="dashboard-header">
-    <h1>System Administration</h1>
+    <h2><i class="fa-solid fa-gears text-muted"></i> System Administration</h2>
 </div>
 
 <div class="card" style="border-top: 4px solid var(--primary);">
@@ -13,21 +25,34 @@
         <thead>
             <tr>
                 <th>Account</th>
-                <th>Global Role</th>
-                <th>Contact</th>
+                <th>Current Role</th>
+                <th>Management Action</th>
             </tr>
         </thead>
         <tbody>
             {% for u in users %}
+            {% if u != user %}
             <tr>
                 <td>
                     <div style="font-weight: 600;"><i class="fa-solid fa-user-circle"></i> {{ u.username }}</div>
+                    <div style="font-size: 0.75rem; color: var(--text-muted);">{{ u.email }}</div>
                 </td>
                 <td>
                     <span class="btn" style="background: #f1f5f9; padding: 0.1rem 0.6rem; font-size: 0.7rem; pointer-events: none;">{{ u.userprofile.role }}</span>
                 </td>
-                <td><small class="text-muted">{{ u.email }}</small></td>
+                <td>
+                    <form action="{% url 'update_user_role' u.id %}" method="post" style="display: flex; gap: 8px;">
+                        {% csrf_token %}
+                        <select name="role" style="padding: 0.25rem; font-size: 0.8rem; border-radius: 4px;">
+                            <option value="REQUESTER" {% if u.userprofile.role == 'REQUESTER' %}selected{% endif %}>Requester</option>
+                            <option value="REVIEWER" {% if u.userprofile.role == 'REVIEWER' %}selected{% endif %}>Reviewer (L1)</option>
+                            <option value="ADMIN" {% if u.userprofile.role == 'ADMIN' %}selected{% endif %}>Admin (L2)</option>
+                        </select>
+                        <button type="submit" class="btn btn-primary" style="padding: 0.25rem 0.75rem; font-size: 0.8rem;"><i class="fa-solid fa-user-gear"></i> Set Role</button>
+                    </form>
+                </td>
             </tr>
+            {% endif %}
             {% endfor %}
         </tbody>
     </table>

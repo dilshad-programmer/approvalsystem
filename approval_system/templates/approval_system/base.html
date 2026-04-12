@@ -8,8 +8,8 @@
     <link rel="stylesheet" href="{% static 'style.css' %}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
-<body>
-    <nav class="navbar">
+<body class="theme-{{ user.userprofile.role|lower }}">
+    <nav class="navbar theme-{{ user.userprofile.role|lower }}">
         <div class="logo-container">
             <a href="/" style="display: flex; align-items: center; gap: 10px; text-decoration: none;">
                 <span style="color: white; font-size: 1.25rem; font-weight: 700; letter-spacing: -0.5px;">DOC<span style="color: var(--primary-light);">APPROVE</span></span>

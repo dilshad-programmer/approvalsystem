@@ -263,10 +263,11 @@ def trigger_lambda_process(payload):
     Used for background processing after workflow events.
     """
     import json
+    function_name = os.getenv('AWS_LAMBDA_FUNCTION_NAME', 'ProcessDocumentApproval')
     lambda_client = get_client('lambda')
     try:
         response = lambda_client.invoke(
-            FunctionName='ProcessDocumentApproval',
+            FunctionName=function_name,
             InvocationType='Event',   # Async — fire and forget
             Payload=json.dumps(payload).encode()
         )
@@ -316,8 +317,9 @@ def check_aws_connectivity():
     # 4. Lambda Check
     try:
         lam = get_client('lambda')
-        lam.get_function(FunctionName='ProcessDocumentApproval')
-        status['lambda'] = {'active': True, 'message': 'Lambda function found and reachable'}
+        function_name = os.getenv('AWS_LAMBDA_FUNCTION_NAME', 'ProcessDocumentApproval')
+        lam.get_function(FunctionName=function_name)
+        status['lambda'] = {'active': True, 'message': f'Function {function_name} is LIVE'}
     except Exception as e:
         status['lambda'] = {'active': False, 'message': f'Lambda: {str(e)}'}
 

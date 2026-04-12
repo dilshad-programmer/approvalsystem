@@ -29,7 +29,7 @@ def register_view(request):
         username = request.POST.get('username')
         email = request.POST.get('email')
         password = request.POST.get('password')
-        role = request.POST.get('role')
+        role = 'REQUESTER' # Default role for all new registrations
 
         # 1. Register in Cognito
         cognito_resp = register_user(username, password, email)
@@ -123,7 +123,32 @@ def admin_dashboard(request):
         'users': all_users
     })
 
-# --- Workflow Actions ---
+@login_required
+def update_user_role(request, user_id):
+    """
+    Admin-only action to promote/change user roles.
+    """
+    if not is_admin(request.user):
+        messages.error(request, "Unauthorized. Admin access required.")
+        return redirect('admin_dashboard')
+    
+    target_user = get_object_or_404(User, id=user_id)
+    new_role = request.POST.get('role')
+    
+    if new_role in [role[0] for role in ROLE_CHOICES]:
+        profile, created = UserProfile.objects.get_or_create(user=target_user)
+        old_role = profile.role
+        profile.role = new_role
+        profile.save()
+
+        # --- Audit Log: DynamoDB ---
+        log_workflow_action(0, "USER_ROLE_UPDATED", request.user.username, f"Admin updated {target_user.username} from {old_role} to {new_role}")
+        
+        messages.success(request, f"User {target_user.username} updated to {new_role}.")
+    else:
+        messages.error(request, "Invalid role selected.")
+        
+    return redirect('admin_dashboard')
 
 @login_required
 def upload_document(request):
@@ -230,6 +255,16 @@ def process_approval(request, request_id):
 
         app_req.comments = comments
         app_req.save()
+
+        # --- AWS Lambda Integration: Trigger Background Workflow ---
+        if app_req.status in ['APPROVED', 'REJECTED', 'PENDING_ADMIN']:
+            payload = {
+                'document_id': app_req.document.id,
+                'action': action, # VERIFIED, APPROVED, or REJECTED
+                'user': request.user.username,
+                'timestamp': str(timezone.now())
+            }
+            trigger_lambda_process(payload)
 
         # Log to DynamoDB with explicit stage names
         audit_action = "VERIFIED_BY_L1" if action == "VERIFIED" else "APPROVED_BY_L2" if action == "APPROVED" else "REJECTED"
