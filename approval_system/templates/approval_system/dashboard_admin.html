@@ -3,20 +3,24 @@
 {% block title %}Admin Dashboard - Cloud Approval System{% endblock %}
 
 {% block content %}
-<div class="card" style="background: linear-gradient(135deg, #1e293b, #334155); color: white; border: none; margin-bottom: 2.5rem;">
+<div class="card"
+    style="background: linear-gradient(135deg, #1e293b, #334155); color: white; border: none; margin-bottom: 2.5rem;">
     <div style="display: flex; justify-content: space-between; align-items: center;">
         <div>
             <h1 style="color: white; margin-bottom: 0.5rem;">Admin Command Center</h1>
-            <p style="opacity: 0.9;">Total Managed Users: **{{ users|length }}** | Global Documents: **{{ documents|length }}**</p>
+            <p style="opacity: 0.9;">Total Managed Users: **{{ users|length }}** | Global Documents: **{{
+                documents|length }}**</p>
         </div>
         <div style="text-align: right;">
-            <a href="{% url 'service_check' %}" class="btn" style="background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2);"><i class="fa-solid fa-signal"></i> Service Integrity Check</a>
+            <a href="{% url 'service_check' %}" class="btn"
+                style="background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2);"><i
+                    class="fa-solid fa-signal"></i> Service Integrity Check</a>
         </div>
     </div>
 </div>
 
 <div class="dashboard-header">
-    <h2><i class="fa-solid fa-gears text-muted"></i> System Administration</h2>
+    <h2><i class="fa-solid fa-gears text-muted"></i> System Administrate</h2>
 </div>
 
 <div class="card" style="border-top: 4px solid var(--primary);">
@@ -38,17 +42,24 @@
                     <div style="font-size: 0.75rem; color: var(--text-muted);">{{ u.email }}</div>
                 </td>
                 <td>
-                    <span class="btn" style="background: #f1f5f9; padding: 0.1rem 0.6rem; font-size: 0.7rem; pointer-events: none;">{{ u.userprofile.role }}</span>
+                    <span class="btn"
+                        style="background: #f1f5f9; padding: 0.1rem 0.6rem; font-size: 0.7rem; pointer-events: none;">{{
+                        u.userprofile.role }}</span>
                 </td>
                 <td>
                     <form action="{% url 'update_user_role' u.id %}" method="post" style="display: flex; gap: 8px;">
                         {% csrf_token %}
                         <select name="role" style="padding: 0.25rem; font-size: 0.8rem; border-radius: 4px;">
-                            <option value="REQUESTER" {% if u.userprofile.role == 'REQUESTER' %}selected{% endif %}>Requester</option>
-                            <option value="REVIEWER" {% if u.userprofile.role == 'REVIEWER' %}selected{% endif %}>Reviewer (L1)</option>
-                            <option value="ADMIN" {% if u.userprofile.role == 'ADMIN' %}selected{% endif %}>Admin (L2)</option>
+                            <option value="REQUESTER" {% if u.userprofile.role=='REQUESTER' %}selected{% endif %}>
+                                Requester</option>
+                            <option value="REVIEWER" {% if u.userprofile.role=='REVIEWER' %}selected{% endif %}>Reviewer
+                                (L1)</option>
+                            <option value="ADMIN" {% if u.userprofile.role=='ADMIN' %}selected{% endif %}>Admin (L2)
+                            </option>
                         </select>
-                        <button type="submit" class="btn btn-primary" style="padding: 0.25rem 0.75rem; font-size: 0.8rem;"><i class="fa-solid fa-user-gear"></i> Set Role</button>
+                        <button type="submit" class="btn btn-primary"
+                            style="padding: 0.25rem 0.75rem; font-size: 0.8rem;"><i class="fa-solid fa-user-gear"></i>
+                            Set Role</button>
                     </form>
                 </td>
             </tr>
@@ -61,35 +72,37 @@
 <div class="card" style="background-color: #f0fdf4; border-top: 4px solid var(--success);">
     <h3 style="color: #166534;"><i class="fa-solid fa-shield-halved"></i> Level 2 Final Approval Queue</h3>
     {% if final_approvals %}
-        <table>
-            <thead>
-                <tr>
-                    <th>Document</th>
-                    <th>L1 Verified By</th>
-                    <th>Uploader</th>
-                    <th style="text-align: right;">Final Decision</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for req in final_approvals %}
-                <tr>
-                    <td>
-                        <div style="display: flex; align-items: center; gap: 10px;">
-                            <i class="fa-solid fa-file-shield fa-2x" style="color: var(--success);"></i>
-                            <div style="font-weight: 500;">{{ req.document.title }}</div>
-                        </div>
-                    </td>
-                    <td><i class="fa-solid fa-user-check text-muted"></i> {{ req.approver.username }}</td>
-                    <td>{{ req.document.uploader.username }}</td>
-                    <td style="text-align: right;">
-                        <a href="{% url 'process_approval' req.id %}" class="btn btn-success"><i class="fa-solid fa-stamp"></i> Review & Approve</a>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+    <table>
+        <thead>
+            <tr>
+                <th>Document</th>
+                <th>L1 Verified By</th>
+                <th>Uploader</th>
+                <th style="text-align: right;">Final Decision</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for req in final_approvals %}
+            <tr>
+                <td>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <i class="fa-solid fa-file-shield fa-2x" style="color: var(--success);"></i>
+                        <div style="font-weight: 500;">{{ req.document.title }}</div>
+                    </div>
+                </td>
+                <td><i class="fa-solid fa-user-check text-muted"></i> {{ req.approver.username }}</td>
+                <td>{{ req.document.uploader.username }}</td>
+                <td style="text-align: right;">
+                    <a href="{% url 'process_approval' req.id %}" class="btn btn-success"><i
+                            class="fa-solid fa-stamp"></i> Review & Approve</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
     {% else %}
-        <p style="color: #166534; padding: 1rem 0;"><i class="fa-solid fa-check-double"></i> No documents currently awaiting final Level 2 approval.</p>
+    <p style="color: #166534; padding: 1rem 0;"><i class="fa-solid fa-check-double"></i> No documents currently awaiting
+        final Level 2 approval.</p>
     {% endif %}
 </div>
 
@@ -112,20 +125,23 @@
                 <td>{{ doc.uploader.username }}</td>
                 <td>
                     {% with req=doc.approval_requests.last %}
-                        <span class="status-pill status-{{ req.status|lower }}">
-                            {% if req.status == 'PENDING_REVIEW' %}<i class="fa-solid fa-clock"></i>
-                            {% elif req.status == 'PENDING_ADMIN' %}<i class="fa-solid fa-hourglass-half"></i>
-                            {% elif req.status == 'APPROVED' %}<i class="fa-solid fa-check-double"></i>
-                            {% elif req.status == 'REJECTED' %}<i class="fa-solid fa-ban"></i>{% endif %}
-                            {{ req.get_status_display }}
-                        </span>
+                    <span class="status-pill status-{{ req.status|lower }}">
+                        {% if req.status == 'PENDING_REVIEW' %}<i class="fa-solid fa-clock"></i>
+                        {% elif req.status == 'PENDING_ADMIN' %}<i class="fa-solid fa-hourglass-half"></i>
+                        {% elif req.status == 'APPROVED' %}<i class="fa-solid fa-check-double"></i>
+                        {% elif req.status == 'REJECTED' %}<i class="fa-solid fa-ban"></i>{% endif %}
+                        {{ req.get_status_display }}
+                    </span>
                     {% endwith %}
                 </td>
                 <td><small>{{ doc.uploaded_at|date:"M d, Y" }}</small></td>
                 <td style="text-align: right;">
-                    <a href="{% url 'document_history' doc.id %}" class="btn" title="Audit History" style="padding: 0.4rem;"><i class="fa-solid fa-list-ul" style="color: var(--info);"></i></a>
-                    <a href="{{ doc.fresh_url }}" target="_blank" class="btn" title="Inspect File" style="padding: 0.4rem;"><i class="fa-solid fa-eye" style="color: var(--success);"></i></a>
-                    <a href="{% url 'delete_document' doc.id %}" class="btn" title="Purge Record" style="padding: 0.4rem;"><i class="fa-solid fa-trash" style="color: var(--danger);"></i></a>
+                    <a href="{% url 'document_history' doc.id %}" class="btn" title="Audit History"
+                        style="padding: 0.4rem;"><i class="fa-solid fa-list-ul" style="color: var(--info);"></i></a>
+                    <a href="{{ doc.fresh_url }}" target="_blank" class="btn" title="Inspect File"
+                        style="padding: 0.4rem;"><i class="fa-solid fa-eye" style="color: var(--success);"></i></a>
+                    <a href="{% url 'delete_document' doc.id %}" class="btn" title="Purge Record"
+                        style="padding: 0.4rem;"><i class="fa-solid fa-trash" style="color: var(--danger);"></i></a>
                 </td>
             </tr>
             {% endfor %}
