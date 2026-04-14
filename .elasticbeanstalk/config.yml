@@ -1,0 +1,11 @@
+branch-defaults:
+  main:
+    environment: null
+    group_suffix: null
+global:
+  application_name: approvalsystem
+  default_ec2_keyname: vockey
+  default_platform: python-3.8
+  default_region: us-east-1
+  profile: null
+  sc: git
