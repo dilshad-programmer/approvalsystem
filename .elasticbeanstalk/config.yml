@@ -1,6 +1,6 @@
 branch-defaults:
   main:
-    environment: Approvalsystem-env-1
+    environment: Doc-approval-env
 environment-defaults:
   Approvalsystem-env-1:
     branch: null
