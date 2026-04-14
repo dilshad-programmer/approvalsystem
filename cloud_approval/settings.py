@@ -30,7 +30,9 @@ SECRET_KEY = 'django-insecure-7$@56q647i*pq2rp4k(8lecf%fgmblm%cdm=6-=lw=np!6ml^y
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = [
+    'c6097fdc15f345b0b9329af33b73907b.vfs.cloud9.us-east-1.amazonaws.com',
+]
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -122,9 +124,19 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/3.2/howto/static-files/
 
+# Static files (CSS, JavaScript, Images)
+
 STATIC_URL = '/static/'
-STATICFILES_DIRS = [BASE_DIR / 'static']
-STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+# Folder where you keep your local static files (dev)
+STATICFILES_DIRS = [
+    os.path.join(BASE_DIR, 'static'),
+]
+
+# Folder where collectstatic will collect all static files (prod)
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+
+# WhiteNoise (for serving static in production)
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 MEDIA_URL = '/media/'
