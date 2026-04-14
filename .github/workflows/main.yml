@@ -88,7 +88,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-session-token:IQoJb3JpZ2luX2VjEM3//////////wEaCXVzLXdlc3QtMiJHMEUCIQDKyZ7vZB3X2tGayAMPuesD0pk3XxFAMZlmsjc3jUHqxQIgN9arUSMs4VJCsuEZcb9bzINA0PnFhiLviHr+VJh3U+0qvQIIlv//////////ARAAGgw1OTAxODM4MTcyODEiDJG00HQ+ofXsMXlH/SqRAmCOt2QWt2POgjhs9/OVB/QwAfwG9Qm9AcqyLdGcCA7s6Ra6BQ127hXyPghr0zYFqBHFpf/llEtSncVSqKHIH9k9nRFXn+ZlFvK5EyjWYYojiBy0yNy3W4fYWxyR6VZCfUgDPOmJTX8Lz9wivuY8QOhRNf8Yh0+4gXvQOa/o1FRejESSCb6ncxXR/Tav8sju1xbnk3fEOfTnKTYzeCmNd0bwKZbfEfsuPIfe1HCpkjVb5JtMzOw0Gmo8otm9eqZM+dkJuDhtyDYaaDPdnpjCHEJcyfSS2irAqdfZ5IJQswO1/RfF2ucA0N4rsziWRAjlpig996UCOQNzDT+MpLk4Br7e/UyzCJMosYD1M0nP4E97MDDIzvrOBjqdAXiEUfHoguP5tUY/Atkd4JnygS0P6zd3bRDO6sT6AGrtIMG0jMVQEP9DPwJXd0P4OCB4mC3Z7vbHIB4nYIMFOCUc/Wt8tbn0MTd7kMDKYn5YYnwDpTf8zX0wMENvzgLW3MJ+8Ff/9l8c5xxIN9Q4kAw8PNQS79SQ/j1aFohJ92iGU6eijOaBtVdRMB5vgNObS6zwwg8R4AvLZPqhPro=
-          aws-region: ${{ secrets.AWS_REGION }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: us-east-1
       - name: Deploy to Elastic Beanstalk
         run: eb deploy Doc-approval-env
