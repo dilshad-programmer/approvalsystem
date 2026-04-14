@@ -30,8 +30,10 @@ SECRET_KEY = 'django-insecure-7$@56q647i*pq2rp4k(8lecf%fgmblm%cdm=6-=lw=np!6ml^y
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = [
-    'c6097fdc15f345b0b9329af33b73907b.vfs.cloud9.us-east-1.amazonaws.com',
+ALLOWED_HOSTS = ['*']
+CSRF_TRUSTED_ORIGINS = [
+    "http://doc-approval-env.eba-xyz.us-east-1.elasticbeanstalk.com",
+    "https://doc-approval-env.eba-xyz.us-east-1.elasticbeanstalk.com",
 ]
 
 INSTALLED_APPS = [
