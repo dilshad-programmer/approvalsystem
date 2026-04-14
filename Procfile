@@ -1,1 +1,0 @@
-web: gunicorn approval_system.wsgi:application
