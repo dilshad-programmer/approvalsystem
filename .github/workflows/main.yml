@@ -91,4 +91,4 @@ jobs:
           aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
           aws-region: us-east-1
       - name: Deploy to Elastic Beanstalk
-        run: eb deploy Approvalsystem-env-1
+        run: eb deploy Doc-approval-env
