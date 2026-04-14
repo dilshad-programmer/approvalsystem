@@ -6,9 +6,10 @@ from django.contrib import messages
 from .models import Document, ApprovalRequest, UserProfile, ROLE_CHOICES
 from django.utils import timezone
 from .aws_utils import (
-    upload_to_s3, send_email_notification, log_workflow_action, 
+    upload_to_s3, send_sns_notification, log_workflow_action, 
     authenticate_user, register_user, get_document_logs, generate_presigned_url,
-    trigger_lambda_process, delete_from_s3, check_aws_connectivity
+    trigger_lambda_process, delete_from_s3, check_aws_connectivity, confirm_user,
+    delete_cognito_user
 )
 from django.views.decorators.csrf import csrf_exempt
 import uuid
@@ -20,10 +21,19 @@ def is_admin(user):
 def is_requester(user):
     return user.is_authenticated and user.userprofile.role == 'REQUESTER'
 
-def is_reviewer(user):
-    return user.is_authenticated and user.userprofile.role == 'REVIEWER'
+def is_approver(user):
+    return user.is_authenticated and user.userprofile.role == 'APPROVER'
 
 # --- Authentication Views ---
+
+def home_view(request):
+    """Public landing page."""
+    if request.user.is_authenticated:
+        role = request.user.userprofile.role
+        if role == 'ADMIN': return redirect('admin_dashboard')
+        elif role == 'APPROVER': return redirect('approver_dashboard')
+        else: return redirect('request_dashboard')
+    return render(request, 'approval_system/index.html')
 
 def register_view(request):
     if request.method == 'POST':
@@ -45,7 +55,7 @@ def register_view(request):
             # --- Audit Log: DynamoDB ---
             log_workflow_action(0, "USER_REGISTERED", username, f"Account created with role: {role} (Cognito Sync: {'Success' if cognito_resp else 'Skipped'})")
             
-            messages.success(request, "Registration successful. Please log in.")
+            messages.success(request, "Registration Complete: Your account has been provisioned. You may now proceed to log in.")
             return redirect('login')
         else:
             messages.error(request, "Username already exists in local database.")
@@ -57,22 +67,55 @@ def login_view(request):
         username = request.POST.get('username')
         password = request.POST.get('password')
 
-        # 1. Authenticate with Cognito (Optional verification)
+        # 1. Authenticate with Cognito
         cog_auth = authenticate_user(username, password)
-        # Suppress non-critical Cognito warnings during login to ensure a clean local experience
         
-        # 2. Authenticate locally for Django session
+        # Scenario: Cognito User Not Found -> Try to Sync from Local Database
+        if cog_auth and 'Error' in cog_auth and "User does not exist" in cog_auth['Error']:
+            # Try local authentication first
+            user = authenticate(request, username=username, password=password)
+            if user is not None:
+                # Local auth success! Now Sync to Cognito
+                print(f"[Sync] User {username} exists locally but not in Cognito. Attempting Auto-Sync...")
+                sync_resp = register_user(username, password, user.email)
+                
+                if sync_resp and 'Error' not in sync_resp:
+                    messages.info(request, f"Welcome back, {username}! Your account has been securely migrated to the cloud. Please check your email to confirm.")
+                    # Log the sync event
+                    log_workflow_action(0, "USER_COGNITO_SYNCED", username, "Auto-provisioned to Cognito during login")
+                    # We still need them to confirm if Cognito Pool requires it, but for now we let them in locally
+                    # if we want strict enforcement, we'd block here. But for "fix login", we let them in.
+                else:
+                    messages.warning(request, f"Local login successful, but cloud sync failed: {sync_resp.get('Error', 'Unknown Error')}")
+            else:
+                messages.error(request, "Authentication Failed: The credentials provided do not match our records.")
+                return render(request, 'approval_system/login.html')
+        
+        elif cog_auth and 'Error' in cog_auth and "User is not confirmed" in cog_auth['Error']:
+            messages.warning(request, "Authentication Pending: Cloud verification is required. Please refer to the confirmation code sent to your registered email address.")
+            messages.info(request, "You can verify your account here: /verify/")
+            # For now, we'll allow local login if credentials match, but warn them.
+            user = authenticate(request, username=username, password=password)
+            if user is None:
+                return render(request, 'approval_system/login.html')
+
+        # Scenario: Hard Cognito Error (e.g. wrong password for existing user)
+        elif cog_auth and 'Error' in cog_auth:
+            messages.error(request, f"Cloud Auth Error: {cog_auth['Error']}")
+            return render(request, 'approval_system/login.html')
+
+        # 2. Authenticate locally for Django session (Final Verification)
         user = authenticate(request, username=username, password=password)
         if user is not None:
             login(request, user)
             
             # --- Audit Log: DynamoDB ---
-            log_workflow_action(0, "USER_LOGIN", username, "User logged in with local credential verification")
+            log_workflow_action(0, "USER_LOGIN", username, "User logged in (Cloud Sync Active)")
             
             # Redirect based on role
             role = user.userprofile.role
             if role == 'ADMIN': return redirect('admin_dashboard')
-            elif role == 'REVIEWER': return redirect('approver_dashboard')
+            elif role == 'APPROVER': return redirect('approver_dashboard')
             else: return redirect('request_dashboard')
         else:
             messages.error(request, "Invalid username or password.")
@@ -82,6 +125,26 @@ def login_view(request):
 def logout_view(request):
     logout(request)
     return redirect('login')
+
+def verify_view(request):
+    """View to handle Cognito account verification code submission."""
+    if request.method == 'POST':
+        username = request.POST.get('username')
+        code = request.POST.get('code')
+        
+        resp = confirm_user(username, code)
+        
+        if resp and 'Error' not in resp:
+            # --- Audit Log: DynamoDB ---
+            log_workflow_action(0, "USER_VERIFIED", username, "Account confirmed via verification code")
+            
+            messages.success(request, "Verification Successful: Your account is now confirmed. You may proceed to log in.")
+            return redirect('login')
+        else:
+            error_msg = resp.get('Error', 'Unknown verification error') if resp else 'Connection failed'
+            messages.error(request, f"Verification Failed: {error_msg}")
+            
+    return render(request, 'approval_system/verify_account.html')
 
 # --- Dashboard Views ---
 
@@ -95,10 +158,10 @@ def request_dashboard(request):
 
 @login_required
 def approver_dashboard(request):
-    """Level 1 Reviewer Dashboard."""
-    if not is_reviewer(request.user): return redirect('login')
-    # Show requests assigned to this reviewer that are PENDING_REVIEW
-    requests = ApprovalRequest.objects.filter(approver=request.user, status='PENDING_REVIEW')
+    """Approver / Manager Dashboard."""
+    if not is_approver(request.user): return redirect('login')
+    # Show requests assigned to this manager that are PENDING
+    requests = ApprovalRequest.objects.filter(approver=request.user, status='PENDING')
     for req in requests:
         req.document.fresh_url = generate_presigned_url(req.document.s3_key)
     return render(request, 'approval_system/dashboard_approver.html', {'requests': requests})
@@ -108,9 +171,9 @@ def admin_dashboard(request):
     """Level 2 Admin Dashboard."""
     if not is_admin(request.user): return redirect('login')
     
-    # Docs needing final approval (Level 2)
-    final_approvals = ApprovalRequest.objects.filter(status='PENDING_ADMIN')
-    for req in final_approvals:
+    # Docs needing approval (Pending)
+    pending_approvals = ApprovalRequest.objects.filter(status='PENDING')
+    for req in pending_approvals:
         req.document.fresh_url = generate_presigned_url(req.document.s3_key)
         
     all_docs = Document.objects.all().order_by('-uploaded_at')
@@ -119,7 +182,7 @@ def admin_dashboard(request):
     all_users = User.objects.all()
     
     return render(request, 'approval_system/dashboard_admin.html', {
-        'final_approvals': final_approvals,
+        'pending_approvals': pending_approvals,
         'documents': all_docs, 
         'users': all_users
     })
@@ -149,6 +212,34 @@ def update_user_role(request, user_id):
     else:
         messages.error(request, "Invalid role selected.")
         
+    return redirect('admin_dashboard')
+
+@login_required
+def delete_user_view(request, user_id):
+    """
+    Admin-only action to permanently delete a user and their cloud profile.
+    """
+    if not is_admin(request.user):
+        messages.error(request, "Unauthorized. Admin access required.")
+        return redirect('admin_dashboard')
+    
+    target_user = get_object_or_404(User, id=user_id)
+    
+    # 1. Protection Check: Prevent deleting self
+    if target_user == request.user:
+        messages.error(request, "Security Restriction: You cannot delete your own administrative account.")
+        return redirect('admin_dashboard')
+    
+    # 2. Delete from Cognito
+    delete_cognito_user(target_user.username)
+    
+    # 3. Audit Logging
+    log_workflow_action(0, "USER_DELETED", request.user.username, f"Admin deleted account: {target_user.username}")
+    
+    # 4. Local Deletion
+    target_user.delete()
+    
+    messages.success(request, f"Process Complete: Account '{target_user.username}' and associated cloud metadata have been removed.")
     return redirect('admin_dashboard')
 
 @login_required
@@ -184,11 +275,10 @@ def upload_document(request):
                 # 4. Log to DynamoDB
                 log_workflow_action(doc.id, "UPLOADED", request.user.username, "Initial upload")
 
-                # 5. Notify Approver via SES
-                send_email_notification(
-                    approver.email,
+                # 5. Notify via SNS
+                send_sns_notification(
                     "New Approval Request",
-                    f"Hi {approver.username}, a new document '{title}' has been submitted for your approval."
+                    f"A new document '{title}' has been submitted by {request.user.username} for approval by {approver.username}."
                 )
 
                 # 6. Trigger Lambda for background processing
@@ -203,73 +293,59 @@ def upload_document(request):
                 }
                 trigger_lambda_process(lambda_payload)
 
-                messages.success(request, "Document uploaded and sent to Level 1 Reviewer!")
+                messages.success(request, "Submission Successful: The document has been securely stored and queued for administrative review.")
                 return redirect('request_dashboard')
             else:
                 messages.error(request, "S3 Upload failed. Check your AWS config.")
         
-    approvers = User.objects.filter(userprofile__role='REVIEWER')
+    approvers = User.objects.filter(userprofile__role='APPROVER')
     return render(request, 'approval_system/upload.html', {'approvers': approvers})
 
 @login_required
 def process_approval(request, request_id):
-    """Handles both L1 (Verification) and L2 (Approval) actions."""
+    """Handles Approval/Rejection actions by Managers."""
     app_req = ApprovalRequest.objects.get(id=request_id)
     
     if request.method == 'POST':
-        action = request.POST.get('action') # 'VERIFIED', 'APPROVED', or 'REJECTED'
+        action = request.POST.get('action') # 'APPROVED' or 'REJECTED'
         comments = request.POST.get('comments')
         user_role = request.user.userprofile.role
 
         if action == 'REJECTED':
             app_req.status = 'REJECTED'
             msg = "Document rejected."
-            # Notify Requester
-            send_email_notification(
-                app_req.document.uploader.email,
+            # Notify via SNS
+            send_sns_notification(
                 "Document Rejected",
-                f"Your document '{app_req.document.title}' has been rejected.\nComments: {comments}"
+                f"Document '{app_req.document.title}' (uploaded by {app_req.document.uploader.username}) has been rejected. Comments: {comments}"
             )
-        elif user_role == 'REVIEWER' and action == 'VERIFIED':
-            app_req.status = 'PENDING_ADMIN'
-            msg = "Document verified and sent to Level 2 Admin."
-            # Notify Admins
-            admins = User.objects.filter(userprofile__role='ADMIN')
-            for admin in admins:
-                send_email_notification(
-                    admin.email,
-                    "New Verification Pending Admin Approval",
-                    f"A document '{app_req.document.title}' has been verified by {request.user.username} and needs your final approval."
-                )
-        elif user_role == 'ADMIN' and action == 'APPROVED':
+        elif action == 'APPROVED':
             app_req.status = 'APPROVED'
-            msg = "Document fully approved!"
-            # Notify Requester
-            send_email_notification(
-                app_req.document.uploader.email,
-                "Document Fully Approved",
-                f"Congratulations! Your document '{app_req.document.title}' has received final approval."
+            msg = "Review Complete: The document has been officially approved."
+            # Notify via SNS
+            send_sns_notification(
+                "Document Approved",
+                f"Document '{app_req.document.title}' (uploaded by {app_req.document.uploader.username}) has been approved."
             )
         else:
-            messages.error(request, "Invalid action for your role or stage.")
+            messages.error(request, "Invalid action.")
             return redirect('login')
 
         app_req.comments = comments
         app_req.save()
 
         # --- AWS Lambda Integration: Trigger Background Workflow ---
-        if app_req.status in ['APPROVED', 'REJECTED', 'PENDING_ADMIN']:
+        if app_req.status in ['APPROVED', 'REJECTED']:
             payload = {
                 'document_id': app_req.document.id,
-                'action': action, # VERIFIED, APPROVED, or REJECTED
+                'action': action,
                 'user': request.user.username,
                 'timestamp': str(timezone.now())
             }
             trigger_lambda_process(payload)
 
-        # Log to DynamoDB with explicit stage names
-        audit_action = "VERIFIED_BY_L1" if action == "VERIFIED" else "APPROVED_BY_L2" if action == "APPROVED" else "REJECTED"
-        log_workflow_action(app_req.document.id, audit_action, request.user.username, comments)
+        # Log to DynamoDB
+        log_workflow_action(app_req.document.id, action, request.user.username, comments)
 
         messages.success(request, msg)
         return redirect('admin_dashboard' if user_role == 'ADMIN' else 'approver_dashboard')
@@ -308,7 +384,7 @@ def delete_document(request, doc_id):
             
             # 3. Delete from Django Database
             doc.delete()
-            messages.success(request, "Document and S3 storage cleared successfully.")
+            messages.success(request, "Process Complete: The document and its associated cloud storage have been permanently removed.")
         else:
             messages.error(request, "Failed to delete file from S3 storage.")
         

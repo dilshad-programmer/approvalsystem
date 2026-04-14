@@ -1,0 +1,114 @@
+{% extends 'approval_system/base.html' %}
+
+{% block content %}
+<div class="hero-section">
+    <h1>Cloud Document Approval System</h1>
+    <p>A secure, cloud-native platform for streamlined document management and approval workflows.</p>
+    
+    <div class="feature-grid">
+        <div class="feature-card">
+            <div class="icon">📁</div>
+            <h3>Secure Storage</h3>
+            <p>Documents are stored in encrypted Amazon S3 buckets with pre-signed access.</p>
+        </div>
+        <div class="feature-card">
+            <div class="icon">📜</div>
+            <h3>Audit Trails</h3>
+            <p>Every action is logged in Amazon DynamoDB for permanent, tamper-proof audit trails.</p>
+        </div>
+        <div class="feature-card">
+            <div class="icon">⚡</div>
+            <h3>Automation</h3>
+            <p>AWS Lambda triggers background processes and notifications automatically.</p>
+        </div>
+        <div class="feature-card">
+            <div class="icon">🛡️</div>
+            <h3>Identity</h3>
+            <p>Enterprise-grade authentication powered by Amazon Cognito.</p>
+        </div>
+    </div>
+
+    <div class="cta-actions">
+        <a href="{% url 'login' %}" class="btn btn-primary">Sign In</a>
+        <a href="{% url 'register' %}" class="btn btn-secondary">Create Account</a>
+    </div>
+</div>
+
+<style>
+    .hero-section {
+        text-align: center;
+        padding: 4rem 2rem;
+        background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+        border-radius: 12px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        margin-top: 2rem;
+    }
+    .hero-section h1 {
+        font-size: 2.5rem;
+        color: #2d3748;
+        margin-bottom: 1rem;
+        font-weight: 700;
+    }
+    .hero-section p {
+        font-size: 1.2rem;
+        color: #718096;
+        max-width: 600px;
+        margin: 0 auto 3rem;
+    }
+    .feature-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 2rem;
+        margin-bottom: 3rem;
+    }
+    .feature-card {
+        padding: 1.5rem;
+        background: white;
+        border-radius: 8px;
+        transition: transform 0.2s;
+        border: 1px solid #e2e8f0;
+    }
+    .feature-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 15px rgba(0,0,0,0.1);
+    }
+    .feature-card .icon {
+        font-size: 2rem;
+        margin-bottom: 1rem;
+    }
+    .feature-card h3 {
+        font-size: 1.1rem;
+        color: #2d3748;
+        margin-bottom: 0.5rem;
+    }
+    .feature-card p {
+        font-size: 0.9rem;
+        color: #718096;
+        margin-bottom: 0;
+    }
+    .cta-actions {
+        display: flex;
+        justify-content: center;
+        gap: 1.5rem;
+    }
+    .btn {
+        padding: 0.75rem 2rem;
+        border-radius: 6px;
+        text-decoration: none;
+        font-weight: 500;
+        transition: opacity 0.2s;
+    }
+    .btn-primary {
+        background: #4a5568;
+        color: white;
+    }
+    .btn-secondary {
+        background: white;
+        color: #4a5568;
+        border: 1px solid #4a5568;
+    }
+    .btn:hover {
+        opacity: 0.8;
+    }
+</style>
+{% endblock %}

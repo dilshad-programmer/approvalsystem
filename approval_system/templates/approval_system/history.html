@@ -3,64 +3,68 @@
 {% block title %}Audit History: {{ document.title }}{% endblock %}
 
 {% block content %}
-<div class="dashboard-header">
-    <h1><i class="fa-solid fa-timeline" style="color: var(--primary);"></i> Document Audit Trail</h1>
-    <a href="javascript:history.back()" class="btn"><i class="fa-solid fa-arrow-left"></i> Back</a>
-</div>
+<div class="history-container">
+    <div class="history-header">
+        <div class="doc-summary">
+            <span class="back-link"><a href="javascript:history.back()">← Back</a></span>
+            <h1>Audit Trail: {{ document.title }}</h1>
+            <p><strong>Uploader:</strong> {{ document.uploader.username }} | <strong>Category:</strong> {{ document.category|default:"General" }}</p>
+        </div>
+        <a href="{{ document.fresh_url }}" target="_blank" class="btn btn-outline">Download File</a>
+    </div>
 
-<div class="card" style="display: flex; gap: 2rem; align-items: center; border-left: 4px solid var(--primary);">
-    <div style="background: #f1f5f9; padding: 1.5rem; border-radius: 12px;">
-        <i class="fa-solid fa-file-shield fa-3x" style="color: var(--text-muted);"></i>
-    </div>
-    <div style="flex: 1;">
-        <h2 style="margin-bottom: 0.25rem;">{{ document.title }}</h2>
-        <p style="color: var(--text-muted); font-size: 0.95rem;">
-            <i class="fa-solid fa-user-circle"></i> Uploaded by <strong>{{ document.uploader.username }}</strong> on {{ document.uploaded_at|date:"M d, Y" }}
-        </p>
-    </div>
-    <div>
-        <a href="{{ document.fresh_url }}" target="_blank" class="btn btn-primary">
-            <i class="fa-solid fa-download"></i> Download Original
-        </a>
-    </div>
-</div>
-
-<div class="card">
-    <h3 style="margin-bottom: 1.5rem; display: flex; align-items: center; gap: 10px;">
-        <i class="fa-solid fa-cloud-arrow-down" style="color: var(--info);"></i> 
-        Real-Time Cloud Archive (DynamoDB)
-    </h3>
-    
-    {% if cloud_logs %}
-        <div class="timeline" style="position: relative; padding-left: 2rem; border-left: 2px solid var(--border-subtle); margin-left: 1rem;">
-            {% for log in cloud_logs %}
-                <div style="position: relative; margin-bottom: 2rem;">
-                    <!-- Timeline Dot -->
-                    <div style="position: absolute; left: -2.4rem; top: 0; width: 12px; height: 12px; border-radius: 50%; background: var(--primary); border: 3px solid white; box-shadow: 0 0 0 4px #ccfbf1;"></div>
-                    
-                    <div style="background: #f8fafc; padding: 1.25rem; border-radius: 8px; border: 1px solid var(--border-subtle);">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-                            <span class="status-pill {% if 'APPROVED' in log.action %}status-approved{% elif 'REJECT' in log.action %}status-rejected{% elif 'UPLOADE' in log.action %}status-pending_review{% else %}status-pending_admin{% endif %}">
-                                {{ log.action }}
-                            </span>
-                            <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 500;">
-                                <i class="fa-regular fa-clock"></i> {{ log.timestamp }}
-                            </span>
+    <div class="timeline-card">
+        <h3>Cloud History (DynamoDB Logs)</h3>
+        
+        {% if cloud_logs %}
+            <div class="timeline">
+                {% for log in cloud_logs %}
+                    <div class="timeline-item">
+                        <div class="timeline-marker"></div>
+                        <div class="timeline-content">
+                            <div class="log-header">
+                                <span class="log-action status-{{ log.Action|lower }}">{{ log.Action }}</span>
+                                <span class="log-time">{{ log.Timestamp }}</span>
+                            </div>
+                            <div class="log-body">
+                                <p><strong>Actor:</strong> {{ log.User }}</p>
+                                <p class="log-comments">"{{ log.Comments|default:"No description" }}"</p>
+                            </div>
                         </div>
-                        <div style="font-size: 0.95rem; font-weight: 500; margin-bottom: 0.25rem;">Performed by: {{ log.user }}</div>
-                        <p style="color: var(--text-muted); font-size: 0.9rem; line-height: 1.4;">{{ log.details }}</p>
                     </div>
-                </div>
-            {% endfor %}
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="empty-logs">No audit logs found in the cloud repository.</p>
+        {% endif %}
+
+        <div class="audit-note">
+            <p>🛡️ <strong>Note:</strong> These logs are immutable and fetched directly from Amazon DynamoDB to ensure accountability and transparency.</p>
         </div>
-    {% else %}
-        <div style="text-align: center; padding: 2rem; color: var(--text-muted);">
-            <i class="fa-solid fa-spinner fa-spin"></i> Fetching logs from AWS...
-        </div>
-    {% endif %}
-    
-    <div style="margin-top: 1rem; padding: 1rem; background: #fffcf0; border: 1px solid #fde68a; border-radius: 8px; font-size: 0.85rem; color: #92400e;">
-        <i class="fa-solid fa-circle-info"></i> These logs are immutable and fetched directly from Amazon DynamoDB for compliance auditing.
     </div>
 </div>
+
+<style>
+    .history-container { padding: 2rem 0; }
+    .history-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 2rem; border-bottom: 1px solid #edf2f7; padding-bottom: 1rem; }
+    .back-link { display: block; margin-bottom: 0.5rem; }
+    .back-link a { text-decoration: none; color: #718096; font-size: 0.9rem; }
+    .doc-summary h1 { margin: 0; color: #2d3748; }
+    .doc-summary p { margin: 0.5rem 0 0; color: #718096; font-size: 0.9rem; }
+    .timeline-card { background: white; padding: 2rem; border-radius: 12px; border: 1px solid #e2e8f0; }
+    .timeline { position: relative; padding-left: 2rem; border-left: 2px solid #edf2f7; margin: 2rem 0; }
+    .timeline-item { position: relative; margin-bottom: 2rem; }
+    .timeline-marker { position: absolute; left: -2.35rem; top: 0; width: 10px; height: 10px; border-radius: 50%; background: #4a5568; border: 2px solid white; }
+    .log-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
+    .log-action { font-size: 0.75rem; font-weight: 700; background: #edf2f7; padding: 0.2rem 0.6rem; border-radius: 4px; text-transform: uppercase; }
+    .log-time { font-size: 0.75rem; color: #a0aec0; }
+    .log-body { background: #f8fafc; padding: 1rem; border-radius: 8px; font-size: 0.9rem; color: #4a5568; }
+    .log-comments { font-style: italic; color: #718096; margin-top: 0.5rem; }
+    .status-approved { background: #f0fff4 !important; color: #22543d; }
+    .status-rejected { background: #fff5f5 !important; color: #822727; }
+    .status-uploaded { background: #ebf8ff !important; color: #2b6cb0; }
+    .empty-logs { text-align: center; color: #a0aec0; padding: 3rem; }
+    .audit-note { background: #fffaf0; border: 1px solid #feebc8; padding: 1rem; border-radius: 6px; font-size: 0.85rem; color: #7b341e; }
+    .btn-outline { border: 1px solid #cbd5e0; color: #4a5568; background: white; text-decoration: none; padding: 0.5rem 1rem; border-radius: 6px; font-size: 0.9rem; }
+</style>
 {% endblock %}

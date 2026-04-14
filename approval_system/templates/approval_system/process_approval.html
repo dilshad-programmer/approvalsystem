@@ -1,67 +1,68 @@
 {% extends 'approval_system/base.html' %}
 
-{% block title %}Process Approval - Cloud Approval System{% endblock %}
+{% block title %}Review Document - Cloud Approval System{% endblock %}
 
 {% block content %}
-<div class="dashboard-header">
-    <h1><i class="fa-solid fa-file-signature" style="color: var(--primary);"></i> Review & Action</h1>
-</div>
+<div class="review-container">
+    <div class="review-card">
+        <div class="review-header">
+            <h2>Review Document</h2>
+            <p>Please inspect the document and provide your verdict.</p>
+        </div>
 
-<div class="card">
-    <div style="margin-bottom: 2rem; border-bottom: 1px solid var(--border-subtle); padding-bottom: 2rem; display: flex; gap: 2rem; align-items: flex-start;">
-        <div style="background: #f8fafc; padding: 2.5rem; border-radius: 12px; border: 1px dashed var(--border-subtle); text-align: center;">
-            <i class="fa-solid fa-file-pdf fa-4x" style="color: #64748b;"></i>
-            <div style="margin-top: 1rem;">
-                <a href="{{ request.document.fresh_url }}" target="_blank" class="btn btn-primary"><i class="fa-solid fa-eye"></i> View Full Document</a>
-            </div>
-        </div>
-        
-        <div style="flex: 1;">
-            <h2 style="margin-bottom: 0.5rem; color: var(--text-main);">{{ request.document.title }}</h2>
-            <div style="margin-bottom: 1.5rem;">
-                <span class="status-pill" style="background: #f1f5f9; color: var(--text-muted); font-size: 0.8rem;">
-                    <i class="fa-solid fa-tag"></i> {{ request.document.category|default:"General" }}
-                </span>
-            </div>
-            
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
-                <div>
-                    <label style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Submitted By</label>
-                    <div style="font-weight: 500;">{{ request.document.uploader.username }}</div>
-                </div>
-                <div>
-                    <label style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Date Submitted</label>
-                    <div style="font-weight: 500;">{{ request.document.uploaded_at|date:"M d, Y" }}</div>
+        <div class="document-preview-section">
+            <div class="doc-icon-large">📄</div>
+            <div class="doc-details">
+                <h3>{{ request.document.title }}</h3>
+                <p><strong>Category:</strong> {{ request.document.category|default:"General" }}</p>
+                <p><strong>Submitted by:</strong> {{ request.document.uploader.username }}</p>
+                <div class="view-action">
+                    <a href="{{ request.document.fresh_url }}" target="_blank" class="btn btn-outline">View Full Document ↗</a>
                 </div>
             </div>
-            
-            <div style="margin-top: 1.5rem;">
-                <label style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Uploader Notes</label>
-                <p style="color: #475569; font-size: 0.95rem; margin-top: 0.25rem;">{{ request.document.description|default:"No description provided." }}</p>
-            </div>
         </div>
+
+        <div class="uploader-notes">
+            <label>Requester's Notes:</label>
+            <p>{{ request.document.description|default:"No notes provided." }}</p>
+        </div>
+
+        <form method="post" class="action-form">
+            {% csrf_token %}
+            <div class="form-group">
+                <label for="comments">Your Comments</label>
+                <textarea name="comments" id="comments" rows="4" placeholder="Add a reason for your decision..." required></textarea>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" name="action" value="APPROVED" class="btn btn-success">✅ Approve</button>
+                <button type="submit" name="action" value="REJECTED" class="btn btn-danger">❌ Reject</button>
+                <a href="javascript:history.back()" class="btn btn-link">Cancel</a>
+            </div>
+        </form>
     </div>
-
-    <form method="post">
-        {% csrf_token %}
-        <div class="form-group">
-            <label for="comments" style="color: var(--text-main); font-weight: 600;">Your Review Comments</label>
-            <textarea name="comments" id="comments" rows="4" placeholder="Mention why you are approving/rejecting this document..." required></textarea>
-        </div>
-        
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--border-subtle);">
-             <a href="javascript:history.back()" class="btn" style="color: var(--text-muted);"><i class="fa-solid fa-arrow-left"></i> Back to Dashboard</a>
-             
-             <div style="display: flex; gap: 1rem;">
-                <button type="submit" name="action" value="REJECTED" class="btn btn-danger"><i class="fa-solid fa-xmark"></i> Reject Document</button>
-                
-                {% if user.userprofile.role == 'REVIEWER' %}
-                    <button type="submit" name="action" value="VERIFIED" class="btn btn-primary" style="background: var(--success); border: none;"><i class="fa-solid fa-check-double"></i> Verify & Forward</button>
-                {% elif user.userprofile.role == 'ADMIN' %}
-                    <button type="submit" name="action" value="APPROVED" class="btn btn-primary"><i class="fa-solid fa-stamp"></i> Final Approval</button>
-                {% endif %}
-             </div>
-        </div>
-    </form>
 </div>
+
+<style>
+    .review-container { display: flex; justify-content: center; padding: 2rem 0; }
+    .review-card { background: white; width: 100%; max-width: 700px; padding: 2.5rem; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+    .review-header { margin-bottom: 2rem; border-bottom: 1px solid #edf2f7; padding-bottom: 1rem; }
+    .review-header h2 { margin: 0; color: #2d3748; }
+    .document-preview-section { display: flex; gap: 2rem; align-items: center; background: #f7fafc; padding: 1.5rem; border-radius: 8px; margin-bottom: 2rem; }
+    .doc-icon-large { font-size: 3rem; }
+    .doc-details h3 { margin: 0 0 0.5rem 0; color: #2d3748; }
+    .doc-details p { margin: 0.2rem 0; font-size: 0.9rem; color: #4a5568; }
+    .view-action { margin-top: 1rem; }
+    .uploader-notes { margin-bottom: 2rem; }
+    .uploader-notes label { display: block; font-weight: 600; color: #4a5568; margin-bottom: 0.5rem; }
+    .uploader-notes p { font-style: italic; color: #718096; }
+    .form-group label { display: block; margin-bottom: 0.5rem; font-weight: 600; color: #2d3748; }
+    .form-group textarea { width: 100%; padding: 0.75rem; border: 1px solid #cbd5e0; border-radius: 6px; box-sizing: border-box; }
+    .form-actions { display: flex; gap: 1rem; margin-top: 2rem; }
+    .btn { padding: 0.75rem 1.5rem; border-radius: 6px; font-weight: 600; cursor: pointer; text-decoration: none; border: none; }
+    .btn-success { background: #38a169; color: white; flex: 1; }
+    .btn-danger { background: #e53e3e; color: white; flex: 1; }
+    .btn-outline { border: 1px solid #cbd5e0; color: #4a5568; background: white; display: inline-block; font-size: 0.9rem; }
+    .btn-link { color: #718096; padding-top: 0.75rem; }
+</style>
 {% endblock %}

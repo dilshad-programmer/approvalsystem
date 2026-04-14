@@ -3,9 +3,9 @@ from django.contrib.auth.models import User
 
 # User Roles
 ROLE_CHOICES = (
-    ('ADMIN', 'Admin (Level 2)'),
+    ('ADMIN', 'Admin / System Manager'),
     ('REQUESTER', 'Requester / Employee'),
-    ('REVIEWER', 'Reviewer (Level 1)'),
+    ('APPROVER', 'Approver / Manager'),
 )
 
 class UserProfile(models.Model):
@@ -31,16 +31,15 @@ class Document(models.Model):
 
 # Approval Workflow status definitions
 STATUS_CHOICES = (
-    ('PENDING_REVIEW', 'Pending L1 Review'),
-    ('PENDING_ADMIN', 'Pending L2 Approval'),
+    ('PENDING', 'Pending Approval'),
     ('APPROVED', 'Approved'),
     ('REJECTED', 'Rejected'),
 )
 
 class ApprovalRequest(models.Model):
     document = models.ForeignKey(Document, on_delete=models.CASCADE, related_name='approval_requests')
-    approver = models.ForeignKey(User, on_delete=models.CASCADE, related_name='assigned_approvals', help_text="Level 1 Reviewer")
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING_REVIEW')
+    approver = models.ForeignKey(User, on_delete=models.CASCADE, related_name='assigned_approvals', help_text="The manager assigned to review this document")
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING')
     comments = models.TextField(blank=True)
     updated_at = models.DateTimeField(auto_now=True)
 

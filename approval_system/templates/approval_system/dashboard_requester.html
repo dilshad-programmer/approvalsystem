@@ -1,13 +1,13 @@
 {% extends 'approval_system/base.html' %}
 
-{% block title %}Requester Dashboard - Cloud Approval System{% endblock %}
+{% block title %}My Documents - Cloud Approval System{% endblock %}
 
 {% block content %}
 <div class="card" style="background: linear-gradient(135deg, #0d9488, #0f766e); color: white; border: none; margin-bottom: 2.5rem;">
     <div style="display: flex; justify-content: space-between; align-items: center;">
         <div>
             <h1 style="color: white; margin-bottom: 0.5rem;">Welcome back, {{ user.username }}!</h1>
-            <p style="opacity: 0.9;">You have **{{ documents|length }}** documents in your personal cloud repository.</p>
+            <p style="opacity: 0.9; font-weight: 500;">Account Summary: {{ documents|length }} Documents stored in Cloud Repository</p>
         </div>
         <i class="fa-solid fa-cloud-bolt fa-4x" style="opacity: 0.2;"></i>
     </div>
@@ -24,7 +24,6 @@
             <thead>
                 <tr>
                     <th>Document Details</th>
-                    <th>Category</th>
                     <th>Timeline</th>
                     <th>Workflow Status</th>
                     <th style="text-align: right;">Actions</th>
@@ -42,7 +41,6 @@
                             </div>
                         </div>
                     </td>
-                    <td><span class="btn" style="background: #f1f5f9; padding: 0.2rem 0.6rem; font-size: 0.75rem; color: var(--text-muted); pointer-events: none;">{{ doc.category|default:"General" }}</span></td>
                     <td>
                         <div style="font-size: 0.85rem;"><i class="fa-regular fa-calendar-check text-muted"></i> {{ doc.uploaded_at|date:"M d, Y" }}</div>
                         <div style="font-size: 0.7rem; color: var(--text-muted);">{{ doc.uploaded_at|time:"H:i" }}</div>
@@ -50,8 +48,7 @@
                     <td>
                         {% with req=doc.approval_requests.last %}
                             <span class="status-pill status-{{ req.status|lower }}">
-                                {% if req.status == 'PENDING_REVIEW' %}<i class="fa-solid fa-clock-rotate-left"></i>
-                                {% elif req.status == 'PENDING_ADMIN' %}<i class="fa-solid fa-user-check"></i>
+                                {% if req.status == 'PENDING' %}<i class="fa-solid fa-clock-rotate-left"></i>
                                 {% elif req.status == 'APPROVED' %}<i class="fa-solid fa-circle-check"></i>
                                 {% elif req.status == 'REJECTED' %}<i class="fa-solid fa-circle-xmark"></i>{% endif %}
                                 {{ req.get_status_display }}

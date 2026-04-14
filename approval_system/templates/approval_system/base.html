@@ -21,7 +21,7 @@
                 {% if user.userprofile.role == 'REQUESTER' %}
                     <a href="{% url 'request_dashboard' %}"><i class="fa-solid fa-chart-line"></i> Dashboard</a>
                     <a href="{% url 'upload_document' %}"><i class="fa-solid fa-cloud-arrow-up"></i> Upload</a>
-                {% elif user.userprofile.role == 'REVIEWER' %}
+                {% elif user.userprofile.role == 'APPROVER' %}
                     <a href="{% url 'approver_dashboard' %}"><i class="fa-solid fa-list-check"></i> Verification Queue</a>
                 {% elif user.userprofile.role == 'ADMIN' %}
                     <a href="{% url 'admin_dashboard' %}"><i class="fa-solid fa-lock"></i> Admin Home</a>

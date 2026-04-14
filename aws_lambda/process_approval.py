@@ -3,7 +3,7 @@ import boto3
 import os
 
 # AWS Clients
-ses = boto3.client('ses')
+sns = boto3.client('sns')
 dynamodb = boto3.resource('dynamodb')
 
 def lambda_handler(event, context):
@@ -43,16 +43,19 @@ def lambda_handler(event, context):
         'body': json.dumps('Workflow background processing complete')
     }
 
-def send_email_notification(recipient, subject, body):
-    """Utility to send email from Lambda via SES."""
+def send_sns_notification(subject, body):
+    """Utility to send notification from Lambda via SNS Topic."""
+    topic_arn = os.environ.get('AWS_SNS_TOPIC_ARN')
+    if not topic_arn:
+        print("SNS Topic ARN not configured in Lambda environment.")
+        return
+        
     try:
-        ses.send_email(
-            Source=os.environ.get('SES_SENDER', 'notifications@example.com'),
-            Destination={'ToAddresses': [recipient]},
-            Message={
-                'Subject': {'Data': subject},
-                'Body': {'Text': {'Data': body}}
-            }
+        sns.publish(
+            TopicArn=topic_arn,
+            Message=body,
+            Subject=subject
         )
+        print(f"SNS Notification sent: {subject}")
     except Exception as e:
-        print(f"Failed to send email: {str(e)}")
+        print(f"Failed to send SNS notification: {str(e)}")

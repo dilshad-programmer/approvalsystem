@@ -1,6 +1,6 @@
 """
 aws_utils.py — AWS Service Integration for Document Approval System
-Integrates: Amazon S3, SES, DynamoDB
+Integrates: Amazon S3, SNS, DynamoDB
 (Cognito not available in this AWS lab environment — Django auth is used instead)
 """
 import boto3
@@ -20,11 +20,12 @@ AWS_SESSION_TOKEN = os.getenv('AWS_SESSION_TOKEN')   # Required for temporary ST
 AWS_REGION        = os.getenv('AWS_REGION', 'us-west-2')
 
 # ── Service config ─────────────────────────────────────────────────────────────
-S3_BUCKET       = os.getenv('AWS_STORAGE_BUCKET_NAME', 'doc-approval-bucket')
-SES_SENDER      = os.getenv('AWS_SES_SOURCE_EMAIL', '')
-DYNAMODB_TABLE  = os.getenv('AWS_DYNAMODB_TABLE_NAME', 'DocumentApprovalLogs')
+S3_BUCKET            = os.getenv('AWS_STORAGE_BUCKET_NAME', 'doc-approval-bucket')
+SNS_TOPIC_ARN        = os.getenv('AWS_SNS_TOPIC_ARN', '')
+DYNAMODB_TABLE       = os.getenv('AWS_DYNAMODB_TABLE_NAME', 'DocumentApprovalLogs')
+LAMBDA_FUNCTION_NAME = os.getenv('AWS_LAMBDA_FUNCTION_NAME', 'ProcessDocumentApproval')
 
-# Cognito placeholders (not used — Django auth handles login/register)
+# Cognito Configuration
 COGNITO_USER_POOL_ID = os.getenv('AWS_COGNITO_USER_POOL_ID', '')
 COGNITO_CLIENT_ID    = os.getenv('AWS_COGNITO_APP_CLIENT_ID', '')
 
@@ -112,53 +113,30 @@ def delete_from_s3(s3_key):
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# 2. AMAZON SES — Email Notifications
+# 2. AMAZON SNS — Notifications
 # ══════════════════════════════════════════════════════════════════════════════
 
-def send_email_notification(recipient, subject, body_text):
+def send_sns_notification(subject, message):
     """
-    Sends an email via Amazon SES.
-    Gracefully falls back (prints to console) if SES is not configured.
+    Sends a notification via Amazon SNS Topic.
+    Returns the response or None on failure.
     """
-    if not SES_SENDER or SES_SENDER == 'your_verified_email@example.com':
-        print(f"[SES SKIPPED] No verified sender configured. Would have sent:")
-        print(f"  To: {recipient} | Subject: {subject}")
+    if not SNS_TOPIC_ARN:
+        print(f"[SNS SKIPPED] No Topic ARN configured. Would have sent:")
+        print(f"  Subject: {subject} | Message: {message}")
         return None
 
-    ses = get_client('ses')
+    sns = get_client('sns')
     try:
-        response = ses.send_email(
-            Source=SES_SENDER,
-            Destination={'ToAddresses': [recipient]},
-            Message={
-                'Subject': {'Data': subject, 'Charset': 'UTF-8'},
-                'Body': {
-                    'Text': {'Data': body_text, 'Charset': 'UTF-8'},
-                    'Html': {
-                        'Data': f"""
-                        <html><body>
-                        <div style="font-family:Arial,sans-serif;max-width:600px;margin:auto">
-                          <div style="background:#2c3e50;padding:20px;color:white">
-                            <h2>Document Approval System</h2>
-                          </div>
-                          <div style="padding:20px;background:#f9f9f9">
-                            <p>{body_text.replace(chr(10), '<br>')}</p>
-                          </div>
-                          <div style="padding:10px;text-align:center;color:#888;font-size:12px">
-                            Cloud Document Approval System
-                          </div>
-                        </div>
-                        </body></html>
-                        """,
-                        'Charset': 'UTF-8'
-                    }
-                }
-            }
+        response = sns.publish(
+            TopicArn=SNS_TOPIC_ARN,
+            Message=message,
+            Subject=subject
         )
-        print(f"[SES] Email sent to {recipient} — MessageId: {response['MessageId']}")
+        print(f"[SNS] Notification published — MessageId: {response['MessageId']}")
         return response
     except ClientError as e:
-        print(f"[SES ERROR] {e}")
+        print(f"[SNS ERROR] {e}")
         return None
 
 
@@ -252,6 +230,46 @@ def authenticate_user(username, password):
         print(f"[Cognito ERROR] Auth Failed: {e.response['Error']['Message']}")
         return {'Error': e.response['Error']['Message']}
 
+def confirm_user(username, code):
+    """Real Cognito confirmation via boto3."""
+    if not COGNITO_CLIENT_ID:
+        print("[Cognito SKIPPED] No Client ID — using Django fallback.")
+        return None
+        
+    cognito = get_client('cognito-idp')
+    try:
+        response = cognito.confirm_sign_up(
+            ClientId=COGNITO_CLIENT_ID,
+            Username=username,
+            ConfirmationCode=code
+        )
+        print(f"[Cognito] User {username} confirmed.")
+        return response
+    except ClientError as e:
+        print(f"[Cognito ERROR] Confirmation Failed: {e.response['Error']['Message']}")
+        return {'Error': e.response['Error']['Message']}
+
+def delete_cognito_user(username):
+    """
+    Deletes a user from Cognito permanently.
+    Requires Admin privileges (AdminDeleteUser).
+    """
+    if not COGNITO_USER_POOL_ID:
+        print("[Cognito SKIPPED] No User Pool ID — cannot delete from cloud.")
+        return None
+        
+    cognito = get_client('cognito-idp')
+    try:
+        response = cognito.admin_delete_user(
+            UserPoolId=COGNITO_USER_POOL_ID,
+            Username=username
+        )
+        print(f"[Cognito] User {username} deleted from pool.")
+        return response
+    except ClientError as e:
+        print(f"[Cognito ERROR] Delete Failed: {e.response['Error']['Message']}")
+        return {'Error': e.response['Error']['Message']}
+
 
 # ══════════════════════════════════════════════════════════════════════════════
 # 5. AWS LAMBDA — Background automation trigger
@@ -263,15 +281,14 @@ def trigger_lambda_process(payload):
     Used for background processing after workflow events.
     """
     import json
-    function_name = os.getenv('AWS_LAMBDA_FUNCTION_NAME', 'ProcessDocumentApproval')
     lambda_client = get_client('lambda')
     try:
         response = lambda_client.invoke(
-            FunctionName=function_name,
+            FunctionName=LAMBDA_FUNCTION_NAME,
             InvocationType='Event',   # Async — fire and forget
             Payload=json.dumps(payload).encode()
         )
-        print(f"[Lambda] Triggered — StatusCode: {response['StatusCode']}")
+        print(f"[Lambda] Triggered {LAMBDA_FUNCTION_NAME} — StatusCode: {response['StatusCode']}")
         return response
     except ClientError as e:
         print(f"[Lambda SKIPPED] {e}")
@@ -282,7 +299,7 @@ def check_aws_connectivity():
     status = {
         's3': {'active': False, 'message': 'Not Checked'},
         'dynamodb': {'active': False, 'message': 'Not Checked'},
-        'ses': {'active': False, 'message': 'Not Checked'},
+        'sns': {'active': False, 'message': 'Not Checked'},
         'lambda': {'active': False, 'message': 'Not Checked'},
         'cognito': {'active': False, 'message': 'Not Checked'}
     }
@@ -303,16 +320,17 @@ def check_aws_connectivity():
     except Exception as e:
         status['dynamodb'] = {'active': False, 'message': f"DynamoDB: {str(e)}"}
 
-    # 3. SES Check
-    if not SES_SENDER or SES_SENDER == 'your_verified_email@example.com':
-        status['ses'] = {'active': False, 'message': 'Sender email not configured properly in .env'}
+    # 3. SNS Check
+    if not SNS_TOPIC_ARN:
+        status['sns'] = {'active': False, 'message': 'SNS Topic ARN not configured in .env'}
     else:
         try:
-            ses = get_client('ses')
-            ses.get_send_quota()
-            status['ses'] = {'active': True, 'message': f'SES is active with sender: {SES_SENDER}'}
+            sns = get_client('sns')
+            # Check if topic exists
+            sns.get_topic_attributes(TopicArn=SNS_TOPIC_ARN)
+            status['sns'] = {'active': True, 'message': f'SNS Topic discovered: {SNS_TOPIC_ARN.split(":")[-1]}'}
         except Exception as e:
-            status['ses'] = {'active': False, 'message': f"SES: {str(e)}"}
+            status['sns'] = {'active': False, 'message': f"SNS: {str(e)}"}
 
     # 4. Lambda Check
     try:
