@@ -19,3 +19,8 @@ env/
 # --- Project Specific ---
 approval_system/migrations/
 static/admin/
+
+# Elastic Beanstalk Files
+.elasticbeanstalk/*
+!.elasticbeanstalk/*.cfg.yml
+!.elasticbeanstalk/*.global.yml
