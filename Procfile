@@ -1,1 +1,1 @@
-web: gunicorn cloud_system.wsgi
+web: gunicorn cloud_approval.wsgi:application

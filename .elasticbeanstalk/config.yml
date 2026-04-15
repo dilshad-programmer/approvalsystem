@@ -1,12 +1,12 @@
 branch-defaults:
   main:
-    environment: Doc-approval-env
+    environment: null
 environment-defaults:
   Doc-approval-env:
     branch: null
     repository: null
 global:
-  application_name: Doc-approval
+  application_name: Doc-approval-env
   default_ec2_keyname: null
   default_platform: Python 3.14 running on 64bit Amazon Linux 2023
   default_region: us-east-1
