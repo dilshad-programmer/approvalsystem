@@ -67,60 +67,31 @@ def login_view(request):
         username = request.POST.get('username')
         password = request.POST.get('password')
 
-        # 1. Authenticate with Cognito
-        cog_auth = authenticate_user(username, password)
-        
-        # Scenario: Cognito User Not Found -> Try to Sync from Local Database
-        if cog_auth and 'Error' in cog_auth and "User does not exist" in cog_auth['Error']:
-            # Try local authentication first
-            user = authenticate(request, username=username, password=password)
-            if user is not None:
-                # Local auth success! Now Sync to Cognito
-                print(f"[Sync] User {username} exists locally but not in Cognito. Attempting Auto-Sync...")
-                sync_resp = register_user(username, password, user.email)
-                
-                if sync_resp and 'Error' not in sync_resp:
-                    messages.info(request, f"Welcome back, {username}! Your account has been securely migrated to the cloud. Please check your email to confirm.")
-                    # Log the sync event
-                    log_workflow_action(0, "USER_COGNITO_SYNCED", username, "Auto-provisioned to Cognito during login")
-                    # We still need them to confirm if Cognito Pool requires it, but for now we let them in locally
-                    # if we want strict enforcement, we'd block here. But for "fix login", we let them in.
-                else:
-                    messages.warning(request, f"Local login successful, but cloud sync failed: {sync_resp.get('Error', 'Unknown Error')}")
-            else:
-                messages.error(request, "Authentication Failed: The credentials provided do not match our records.")
-                return render(request, 'approval_system/login.html')
-        
-        elif cog_auth and 'Error' in cog_auth and "User is not confirmed" in cog_auth['Error']:
-            messages.warning(request, "Authentication Pending: Cloud verification is required. Please check your registered email for a confirmation code.")
-            messages.info(request, 'You can verify your account here: <a href="/verify/" style="color:#007bff;font-weight:bold;">Click to Verify</a>')
-            # For now, we'll allow local login if credentials match, but warn them.
-            user = authenticate(request, username=username, password=password)
-            if user is None:
-                return render(request, 'approval_system/login.html')
-
-        # Scenario: Hard Cognito Error (e.g. wrong password for existing user)
-        elif cog_auth and 'Error' in cog_auth:
-            messages.error(request, f"Cloud Auth Error: {cog_auth['Error']}")
-            return render(request, 'approval_system/login.html')
-
-        # 2. Authenticate locally for Django session (Final Verification)
+        # 1. Try local Django authentication first (always reliable)
         user = authenticate(request, username=username, password=password)
+
         if user is not None:
             login(request, user)
-            
-            # --- Audit Log: DynamoDB ---
-            log_workflow_action(0, "USER_LOGIN", username, "User logged in (Cloud Sync Active)")
-            
+
+            # Audit Log (non-blocking — won't crash login if AWS is down)
+            try:
+                log_workflow_action(0, "USER_LOGIN", username, "User logged in")
+            except Exception:
+                pass
+
             # Redirect based on role
             role = user.userprofile.role
-            if role == 'ADMIN': return redirect('admin_dashboard')
-            elif role == 'APPROVER': return redirect('approver_dashboard')
-            else: return redirect('request_dashboard')
+            if role == 'ADMIN':
+                return redirect('admin_dashboard')
+            elif role == 'APPROVER':
+                return redirect('approver_dashboard')
+            else:
+                return redirect('request_dashboard')
         else:
             messages.error(request, "Invalid username or password.")
-            
+
     return render(request, 'approval_system/login.html')
+
 
 def logout_view(request):
     logout(request)
