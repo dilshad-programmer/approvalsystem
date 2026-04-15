@@ -98,6 +98,14 @@ jobs:
           aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
           aws-region: us-east-1
 
+      - name: Set Environment Variables
+        run: |
+          eb setenv AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }} \
+                   AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }} \
+                   AWS_SESSION_TOKEN=${{ secrets.AWS_SESSION_TOKEN }} \
+                   AWS_REGION=us-east-1 \
+                   DJANGO_SECRET_KEY="django-insecure-7$@56q647i*pq2rp4k(8lecf%fgmblm%cdm=6-=lw=np!6ml^y"
+
       - name: Deploy to Elastic Beanstalk
         run: |
           eb init Doc-approval-env --region us-east-1 --platform "Python 3.9"
