@@ -80,16 +80,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.9"
-
-      - name: Install EB CLI
-        run: |
-          python -m pip install --upgrade pip
-          pip install awsebcli
-
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -98,20 +88,44 @@ jobs:
           aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
           aws-region: us-east-1
 
-      - name: Set Environment Variables and Deploy
-        env:
-          EB_AWS_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          EB_AWS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          EB_AWS_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
+      - name: Set EB Environment Variables
         run: |
-          eb init Doc-approval-env --region us-east-1 --platform "Python 3.9"
-          eb use Doc-approval-env-env
-          
-          # Use single quotes to prevent shell expansion of special characters in secrets
-          eb setenv AWS_ACCESS_KEY_ID="$EB_AWS_ID" \
-                    AWS_SECRET_ACCESS_KEY="$EB_AWS_KEY" \
-                    AWS_SESSION_TOKEN="$EB_AWS_TOKEN" \
-                    AWS_REGION=us-east-1 \
-                    DJANGO_SECRET_KEY="django-insecure-7\$@56q647i*pq2rp4k(8lecf%fgmblm%cdm=6-=lw=np!6ml^y"
-          
-          eb deploy --timeout 25 --label "v-${{ github.run_id }}" --message "CI/CD Deployment Run ${{ github.run_id }}"
+          aws elasticbeanstalk update-environment \
+            --environment-name Doc-approval-env-env \
+            --option-settings \
+              Namespace=aws:elasticbeanstalk:application:environment,OptionName=AWS_ACCESS_KEY_ID,Value=${{ secrets.AWS_ACCESS_KEY_ID }} \
+              Namespace=aws:elasticbeanstalk:application:environment,OptionName=AWS_SECRET_ACCESS_KEY,Value=${{ secrets.AWS_SECRET_ACCESS_KEY }} \
+              Namespace=aws:elasticbeanstalk:application:environment,OptionName=AWS_SESSION_TOKEN,Value=${{ secrets.AWS_SESSION_TOKEN }} \
+              Namespace=aws:elasticbeanstalk:application:environment,OptionName=AWS_REGION,Value=us-east-1 \
+              Namespace=aws:elasticbeanstalk:application:environment,OptionName=DJANGO_SETTINGS_MODULE,Value=cloud_approval.settings
+
+      - name: Create deployment package
+        run: |
+          zip -r app.zip . \
+            --exclude "*.git*" \
+            --exclude ".venv/*" \
+            --exclude "__pycache__/*" \
+            --exclude "*.pyc"
+
+      - name: Upload to existing S3 bucket
+        run: |
+          aws s3 cp app.zip s3://doc-approval-bucket/eb-deployments/app-v-${{ github.run_id }}.zip
+
+      - name: Create Elastic Beanstalk application version
+        run: |
+          aws elasticbeanstalk create-application-version \
+            --application-name doc-approval-app \
+            --version-label "v-${{ github.run_id }}" \
+            --source-bundle S3Bucket=doc-approval-bucket,S3Key=eb-deployments/app-v-${{ github.run_id }}.zip \
+            --description "CI/CD Deployment Run ${{ github.run_id }}"
+
+      - name: Deploy version to Elastic Beanstalk
+        run: |
+          aws elasticbeanstalk update-environment \
+            --environment-name Doc-approval-env-env \
+            --version-label "v-${{ github.run_id }}"
+
+      - name: Wait for deployment to complete
+        run: |
+          aws elasticbeanstalk wait environment-updated \
+            --environment-names Doc-approval-env-env
