@@ -39,6 +39,12 @@ CSRF_TRUSTED_ORIGINS = [
     "http://127.0.0.1:8000",
 ]
 
+# HTTP (not HTTPS) on EB — disable secure cookie requirements
+CSRF_COOKIE_SECURE = False
+SESSION_COOKIE_SECURE = False
+CSRF_COOKIE_HTTPONLY = False
+
+
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
