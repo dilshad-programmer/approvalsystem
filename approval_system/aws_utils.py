@@ -290,66 +290,80 @@ def trigger_lambda_process(payload):
         )
         print(f"[Lambda] Triggered {LAMBDA_FUNCTION_NAME} — StatusCode: {response['StatusCode']}")
         return response
-    except ClientError as e:
         print(f"[Lambda SKIPPED] {e}")
         return None
 
 def check_aws_connectivity():
-    """Checks the status of all configured AWS services."""
+    """Checks the status of all configured AWS services using lightweight API calls."""
     status = {
-        's3': {'active': False, 'message': 'Not Checked'},
+        's3':       {'active': False, 'message': 'Not Checked'},
         'dynamodb': {'active': False, 'message': 'Not Checked'},
-        'sns': {'active': False, 'message': 'Not Checked'},
-        'lambda': {'active': False, 'message': 'Not Checked'},
-        'cognito': {'active': False, 'message': 'Not Checked'}
+        'sns':      {'active': False, 'message': 'Not Checked'},
+        'lambda':   {'active': False, 'message': 'Not Checked'},
+        'cognito':  {'active': False, 'message': 'Not Checked'},
     }
 
-    # 1. S3 Check
+    # 1. S3 — Use list_objects_v2 (lighter than head_bucket)
     try:
         s3 = get_client('s3')
-        s3.head_bucket(Bucket=S3_BUCKET)
+        s3.list_objects_v2(Bucket=S3_BUCKET, MaxKeys=1)
         status['s3'] = {'active': True, 'message': f'Connected to bucket: {S3_BUCKET}'}
     except Exception as e:
         status['s3'] = {'active': False, 'message': f"S3: {str(e)}"}
 
-    # 2. DynamoDB Check
+    # 2. DynamoDB — Use list_tables (lighter than describe_table)
     try:
         ddb = get_client('dynamodb')
-        ddb.describe_table(TableName=DYNAMODB_TABLE)
-        status['dynamodb'] = {'active': True, 'message': f'Table {DYNAMODB_TABLE} is active'}
+        result = ddb.list_tables()
+        tables = result.get('TableNames', [])
+        if DYNAMODB_TABLE in tables:
+            status['dynamodb'] = {'active': True, 'message': f'Table {DYNAMODB_TABLE} is active'}
+        else:
+            status['dynamodb'] = {'active': False, 'message': f'Table {DYNAMODB_TABLE} not found in account'}
     except Exception as e:
-        status['dynamodb'] = {'active': False, 'message': f"DynamoDB: {str(e)}"}
+        status['dynamodb'] = {'active': False, 'message': f'DynamoDB: {str(e)[:120]}'}
 
-    # 3. SNS Check
+    # 3. SNS — Use list_topics (lighter than get_topic_attributes)
     if not SNS_TOPIC_ARN:
         status['sns'] = {'active': False, 'message': 'SNS Topic ARN not configured in .env'}
     else:
         try:
             sns = get_client('sns')
-            # Check if topic exists
-            sns.get_topic_attributes(TopicArn=SNS_TOPIC_ARN)
-            status['sns'] = {'active': True, 'message': f'SNS Topic discovered: {SNS_TOPIC_ARN.split(":")[-1]}'}
+            pages = sns.list_topics()
+            found = any(t['TopicArn'] == SNS_TOPIC_ARN for t in pages.get('Topics', []))
+            if found:
+                status['sns'] = {'active': True, 'message': f'SNS Topic active: {SNS_TOPIC_ARN.split(":")[-1]}'}
+            else:
+                status['sns'] = {'active': False, 'message': 'SNS Topic ARN not found in account'}
         except Exception as e:
-            status['sns'] = {'active': False, 'message': f"SNS: {str(e)}"}
+            status['sns'] = {'active': False, 'message': f'SNS: {str(e)[:120]}'}
 
-    # 4. Lambda Check
+    # 4. Lambda — Use list_functions (lighter than get_function)
     try:
         lam = get_client('lambda')
-        function_name = os.getenv('AWS_LAMBDA_FUNCTION_NAME', 'ProcessDocumentApproval')
-        lam.get_function(FunctionName=function_name)
-        status['lambda'] = {'active': True, 'message': f'Function {function_name} is LIVE'}
+        result = lam.list_functions(MaxItems=50)
+        names = [f['FunctionName'] for f in result.get('Functions', [])]
+        if LAMBDA_FUNCTION_NAME in names:
+            status['lambda'] = {'active': True, 'message': f'Function {LAMBDA_FUNCTION_NAME} is LIVE'}
+        else:
+            status['lambda'] = {'active': False, 'message': f'Function {LAMBDA_FUNCTION_NAME} not found'}
     except Exception as e:
-        status['lambda'] = {'active': False, 'message': f'Lambda: {str(e)}'}
+        status['lambda'] = {'active': False, 'message': f'Lambda: {str(e)[:120]}'}
 
-    # 5. Cognito Check
+    # 5. Cognito — Use list_user_pools (lighter than describe_user_pool)
     if not COGNITO_USER_POOL_ID or not COGNITO_CLIENT_ID:
-        status['cognito'] = {'active': False, 'message': 'Cognito IDs not provided in .env (Using Local Auth fallback)'}
+        status['cognito'] = {'active': False, 'message': 'Cognito IDs not configured in .env'}
     else:
         try:
             cog = get_client('cognito-idp')
-            cog.describe_user_pool(UserPoolId=COGNITO_USER_POOL_ID)
-            status['cognito'] = {'active': True, 'message': f'Cognito pool {COGNITO_USER_POOL_ID} is reachable'}
+            result = cog.list_user_pools(MaxResults=10)
+            ids = [p['Id'] for p in result.get('UserPools', [])]
+            if COGNITO_USER_POOL_ID in ids:
+                status['cognito'] = {'active': True, 'message': f'Cognito pool {COGNITO_USER_POOL_ID} is reachable'}
+            else:
+                status['cognito'] = {'active': False, 'message': f'Pool {COGNITO_USER_POOL_ID} not found (may still be working)'}
         except Exception as e:
-            status['cognito'] = {'active': False, 'message': f"Cognito: {str(e)}"}
+            status['cognito'] = {'active': False, 'message': f'Cognito: {str(e)[:120]}'}
 
     return status
+
