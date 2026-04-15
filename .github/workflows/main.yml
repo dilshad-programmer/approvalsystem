@@ -63,9 +63,11 @@ jobs:
           aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws_session_token: ${{ secrets.AWS_SESSION_TOKEN }}
-          application_name: doc-approval-app
+          application_name: Doc-approval-env
           environment_name: Doc-approval-env-env
           version_label: "v-${{ github.run_id }}"
           region: us-east-1
           deployment_package: deploy.zip
-          wait_for_environment_recovery: 120
+          existing_bucket_name: elasticbeanstalk-us-east-1-590183817281
+          wait_for_environment_recovery: 180
+          use_existing_version_if_available: true
