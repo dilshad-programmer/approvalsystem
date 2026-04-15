@@ -32,8 +32,7 @@ DEBUG = True
 
 ALLOWED_HOSTS = ['*']
 CSRF_TRUSTED_ORIGINS = [
-    "http://doc-approval-env.eba-xyz.us-east-1.elasticbeanstalk.com"
-]
+"http://doc-approval-env.eba-xyz.us-east-1.elasticbeanstalk.com"]
 
 INSTALLED_APPS = [
     'django.contrib.admin',
