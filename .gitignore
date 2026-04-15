@@ -17,7 +17,6 @@ env/
 .idea/
 
 # --- Project Specific ---
-approval_system/migrations/
 static/admin/
 
 # Elastic Beanstalk Files
