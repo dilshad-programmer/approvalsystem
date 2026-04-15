@@ -8,8 +8,7 @@
     <div style="display: flex; justify-content: space-between; align-items: center;">
         <div>
             <h1 style="color: white; margin-bottom: 0.5rem;">Admin Control Panel</h1>
-            <p style="opacity: 0.9; font-weight: 500;">System Overview: {{ users|length }} Registered Users | {{
-                documents|length }} Total Documents</p>
+            <p style="opacity: 0.9; font-weight: 500;">System Overview: {{ users|length }} Registered Users | {{ documents|length }} Total Documents</p>
         </div>
         <div style="text-align: right;">
             <a href="{% url 'service_check' %}" class="btn"
