@@ -1,5 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import User
+from django.db.models.signals import post_save
+from django.dispatch import receiver
 
 # User Roles
 ROLE_CHOICES = (
@@ -14,6 +16,19 @@ class UserProfile(models.Model):
 
     def __str__(self):
         return f"{self.user.username} - {self.role}"
+
+# Auto-create UserProfile when a User is created
+@receiver(post_save, sender=User)
+def create_user_profile(sender, instance, created, **kwargs):
+    if created:
+        UserProfile.objects.get_or_create(user=instance)
+
+@receiver(post_save, sender=User)
+def save_user_profile(sender, instance, **kwargs):
+    try:
+        instance.userprofile.save()
+    except UserProfile.DoesNotExist:
+        UserProfile.objects.create(user=instance)
 
 # Document metadata
 class Document(models.Model):
@@ -45,3 +60,4 @@ class ApprovalRequest(models.Model):
 
     def __str__(self):
         return f"{self.document.title} - {self.status}"
+

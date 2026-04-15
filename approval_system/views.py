@@ -79,8 +79,14 @@ def login_view(request):
             except Exception:
                 pass
 
+            # Get role safely — create profile if missing
+            try:
+                profile, _ = user.userprofile.__class__.objects.get_or_create(user=user)
+                role = profile.role
+            except Exception:
+                role = 'REQUESTER'
+
             # Redirect based on role
-            role = user.userprofile.role
             if role == 'ADMIN':
                 return redirect('admin_dashboard')
             elif role == 'APPROVER':
@@ -91,6 +97,7 @@ def login_view(request):
             messages.error(request, "Invalid username or password.")
 
     return render(request, 'approval_system/login.html')
+
 
 
 def logout_view(request):
