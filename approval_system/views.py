@@ -92,8 +92,8 @@ def login_view(request):
                 return render(request, 'approval_system/login.html')
         
         elif cog_auth and 'Error' in cog_auth and "User is not confirmed" in cog_auth['Error']:
-            messages.warning(request, "Authentication Pending: Cloud verification is required. Please refer to the confirmation code sent to your registered email address.")
-            messages.info(request, "You can verify your account here: /verify/")
+            messages.warning(request, "Authentication Pending: Cloud verification is required. Please check your registered email for a confirmation code.")
+            messages.info(request, 'You can verify your account here: <a href="/verify/" style="color:#007bff;font-weight:bold;">Click to Verify</a>')
             # For now, we'll allow local login if credentials match, but warn them.
             user = authenticate(request, username=username, password=password)
             if user is None:
