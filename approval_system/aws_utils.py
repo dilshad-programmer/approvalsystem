@@ -290,8 +290,10 @@ def trigger_lambda_process(payload):
         )
         print(f"[Lambda] Triggered {LAMBDA_FUNCTION_NAME} — StatusCode: {response['StatusCode']}")
         return response
+    except ClientError as e:
         print(f"[Lambda SKIPPED] {e}")
         return None
+
 
 def check_aws_connectivity():
     """Checks the status of all configured AWS services using lightweight API calls."""
