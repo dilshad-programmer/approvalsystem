@@ -91,4 +91,6 @@ jobs:
           aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
           aws-region: us-east-1
       - name: Deploy to Elastic Beanstalk
-        run: eb deploy Doc-approval-env-env
+        run: |
+          eb init doc-approval-app --region us-east-1 --platform "Python 3.8"
+          eb deploy Doc-approval-env-env --label "v-${{ github.run_id }}" --message "CI/CD Deployment Run ${{ github.run_id }}"
