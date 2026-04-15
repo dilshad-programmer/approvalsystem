@@ -1,1 +1,0 @@
-web: gunicorn cloud_approval.wsgi:application
