@@ -32,8 +32,11 @@ DEBUG = os.getenv('DJANGO_DEBUG', 'False') == 'True'
 
 ALLOWED_HOSTS = ['*']
 CSRF_TRUSTED_ORIGINS = [
-    "http://doc-approval-env.eba-xyz.us-east-1.elasticbeanstalk.com",
-    "https://*.elasticbeanstalk.com"
+    "http://doc-approval-env-env.eba-nbptqn8u.us-east-1.elasticbeanstalk.com",
+    "https://doc-approval-env-env.eba-nbptqn8u.us-east-1.elasticbeanstalk.com",
+    "http://*.elasticbeanstalk.com",
+    "https://*.elasticbeanstalk.com",
+    "http://127.0.0.1:8000",
 ]
 
 INSTALLED_APPS = [
@@ -47,17 +50,15 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
-    'approval_system.middleware.DisableCSRFMiddleware', # Global unblocker for Dev
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
+    'approval_system.middleware.DisableCSRFMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',
 ]
 
 ROOT_URLCONF = 'cloud_approval.urls'
@@ -133,9 +134,9 @@ USE_TZ = True
 STATIC_URL = '/static/'
 
 # Folder where you keep your local static files (dev)
-STATICFILES_DIRS = [
-    os.path.join(BASE_DIR, 'static'),
-]
+# Only include if the directory actually exists (avoids crashes on EB)
+_STATIC_DIR = os.path.join(BASE_DIR, 'static')
+STATICFILES_DIRS = [_STATIC_DIR] if os.path.isdir(_STATIC_DIR) else []
 
 # Folder where collectstatic will collect all static files (prod)
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
