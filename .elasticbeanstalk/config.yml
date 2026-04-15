@@ -1,6 +1,6 @@
 branch-defaults:
   main:
-    environment: doc-approval-env-final
+    environment: doc-approval-env
     group_suffix: null
 global:
   application_name: doc-approval-app
