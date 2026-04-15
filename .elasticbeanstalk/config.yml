@@ -2,20 +2,18 @@ branch-defaults:
   main:
     environment: Doc-approval-env
 environment-defaults:
-  Approvalsystem-env-1:
+  Doc-approval-env:
     branch: null
     repository: null
 global:
-  application_name: approvalsystem
-  branch: null
+  application_name: Doc-approval
   default_ec2_keyname: null
-  default_platform: Python 3.9 running on 64bit Amazon Linux 2023
+  default_platform: Python 3.14 running on 64bit Amazon Linux 2023
   default_region: us-east-1
   include_git_submodules: true
   instance_profile: null
   platform_name: null
   platform_version: null
   profile: null
-  repository: null
   sc: git
   workspace_type: Application
