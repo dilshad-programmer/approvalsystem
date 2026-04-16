@@ -54,7 +54,7 @@
                     <form action="{% url 'update_user_role' u.id %}" method="post" style="display: flex; gap: 8px;">
                         {% csrf_token %}
                         <select name="role" style="padding: 0.25rem; font-size: 0.8rem; border-radius: 4px;">
-                            <option value="REQUESTER" {% if u.userprofile.role=='REQUESTER' %}selected{% endif %}>
+                            <option value="REQUESTER" {% if u.userprofile.role == 'REQUESTER' %}selected{% endif %}>
                                 Employee</option>
                             <option value="APPROVER" {% if u.userprofile.role=='APPROVER' %}selected{% endif %}>Approver
                             </option>
