@@ -8,7 +8,8 @@
     <div style="display: flex; justify-content: space-between; align-items: center;">
         <div>
             <h1 style="color: white; margin-bottom: 0.5rem;">Admin Control Panel</h1>
-            <p style="opacity: 0.9; font-weight: 500;">System Overview: {{ users|length }} Registered Users | {{ documents|length }} Total Documents</p>
+            <p style="opacity: 0.9; font-weight: 500;">System Overview: {{ users|length }} Registered Users | {{
+                documents|length }} Total Documents</p>
         </div>
         <div style="text-align: right;">
             <a href="{% url 'service_check' %}" class="btn"
@@ -19,7 +20,7 @@
 </div>
 
 <div class="dashboard-header">
-    <h2><i class="fa-solid fa-gears text-muted"></i> System Administration</h2>
+    <h2><i class="fa-solid fa-gears text-muted"></i> System Administrat</h2>
 </div>
 
 <div class="card" style="border-top: 4px solid var(--primary);">
@@ -49,11 +50,11 @@
                     <form action="{% url 'update_user_role' u.id %}" method="post" style="display: flex; gap: 8px;">
                         {% csrf_token %}
                         <select name="role" style="padding: 0.25rem; font-size: 0.8rem; border-radius: 4px;">
-                            <option value="REQUESTER" {% if u.userprofile.role == 'REQUESTER' %}selected{% endif %}>
+                            <option value="REQUESTER" {% if u.userprofile.role=='REQUESTER' %}selected{% endif %}>
                                 Employee</option>
-                            <option value="APPROVER" {% if u.userprofile.role == 'APPROVER' %}selected{% endif %}>Approver
+                            <option value="APPROVER" {% if u.userprofile.role=='APPROVER' %}selected{% endif %}>Approver
                             </option>
-                            <option value="ADMIN" {% if u.userprofile.role == 'ADMIN' %}selected{% endif %}>Admin</option>
+                            <option value="ADMIN" {% if u.userprofile.role=='ADMIN' %}selected{% endif %}>Admin</option>
                         </select>
                         <button type="submit" class="btn btn-primary"
                             style="padding: 0.25rem 0.75rem; font-size: 0.8rem;"><i class="fa-solid fa-user-gear"></i>
