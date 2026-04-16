@@ -32,24 +32,48 @@ COGNITO_CLIENT_ID    = os.getenv('AWS_COGNITO_APP_CLIENT_ID', '')
 
 # ── Boto3 client/resource factory ─────────────────────────────────────────────
 def get_client(service_name):
-    """Returns a boto3 client with STS temporary credentials support."""
-    return boto3.client(
-        service_name,
-        aws_access_key_id=AWS_ACCESS_KEY,
-        aws_secret_access_key=AWS_SECRET_KEY,
-        aws_session_token=AWS_SESSION_TOKEN,
-        region_name=AWS_REGION
-    )
+    """Returns a boto3 client.
+    - Uses explicit STS credentials if AWS_ACCESS_KEY_ID is set in environment.
+    - Falls back to EC2 instance profile (IAM role) on Elastic Beanstalk.
+    - Returns None gracefully if credentials are missing or invalid.
+    """
+    try:
+        if AWS_ACCESS_KEY and AWS_SECRET_KEY:
+            return boto3.client(
+                service_name,
+                aws_access_key_id=AWS_ACCESS_KEY,
+                aws_secret_access_key=AWS_SECRET_KEY,
+                aws_session_token=AWS_SESSION_TOKEN,
+                region_name=AWS_REGION
+            )
+        else:
+            # On EB: use EC2 instance profile (IAM role)
+            return boto3.client(service_name, region_name=AWS_REGION)
+    except Exception as e:
+        print(f"[AWS] Failed to create {service_name} client: {e}")
+        return None
 
 def get_resource(service_name):
-    """Returns a boto3 resource with STS temporary credentials support."""
-    return boto3.resource(
-        service_name,
-        aws_access_key_id=AWS_ACCESS_KEY,
-        aws_secret_access_key=AWS_SECRET_KEY,
-        aws_session_token=AWS_SESSION_TOKEN,
-        region_name=AWS_REGION
-    )
+    """Returns a boto3 resource.
+    - Uses explicit STS credentials if AWS_ACCESS_KEY_ID is set in environment.
+    - Falls back to EC2 instance profile (IAM role) on Elastic Beanstalk.
+    - Returns None gracefully if credentials are missing or invalid.
+    """
+    try:
+        if AWS_ACCESS_KEY and AWS_SECRET_KEY:
+            return boto3.resource(
+                service_name,
+                aws_access_key_id=AWS_ACCESS_KEY,
+                aws_secret_access_key=AWS_SECRET_KEY,
+                aws_session_token=AWS_SESSION_TOKEN,
+                region_name=AWS_REGION
+            )
+        else:
+            # On EB: use EC2 instance profile (IAM role)
+            return boto3.resource(service_name, region_name=AWS_REGION)
+    except Exception as e:
+        print(f"[AWS] Failed to create {service_name} resource: {e}")
+        return None
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -62,6 +86,9 @@ def upload_to_s3(file_obj, s3_key):
     Returns a pre-signed URL (valid 1 hour) so files stay private and secure.
     """
     s3 = get_client('s3')
+    if s3 is None:
+        print("[S3 SKIPPED] No valid AWS client available.")
+        return None
     try:
         s3.upload_fileobj(
             file_obj,
@@ -88,6 +115,8 @@ def generate_presigned_url(s3_key, expiry=3600):
     Use this to refresh download links that may have expired.
     """
     s3 = get_client('s3')
+    if s3 is None:
+        return None
     try:
         url = s3.generate_presigned_url(
             'get_object',
@@ -103,6 +132,8 @@ def generate_presigned_url(s3_key, expiry=3600):
 def delete_from_s3(s3_key):
     """Deletes a document from S3."""
     s3 = get_client('s3')
+    if s3 is None:
+        return False
     try:
         s3.delete_object(Bucket=S3_BUCKET, Key=s3_key)
         print(f"[S3] Deleted: s3://{S3_BUCKET}/{s3_key}")
@@ -127,6 +158,8 @@ def send_sns_notification(subject, message):
         return None
 
     sns = get_client('sns')
+    if sns is None:
+        return None
     try:
         response = sns.publish(
             TopicArn=SNS_TOPIC_ARN,
@@ -150,6 +183,9 @@ def log_workflow_action(document_id, action, user, comments=""):
     Each log entry is immutable and provides a complete audit trail.
     """
     dynamodb = get_resource('dynamodb')
+    if dynamodb is None:
+        print(f"[DynamoDB SKIPPED] No valid AWS resource. Action={action}, User={user}")
+        return
     table = dynamodb.Table(DYNAMODB_TABLE)
     log_id = f"{document_id}_{uuid.uuid4().hex[:8]}_{action}"
     try:
@@ -172,6 +208,8 @@ def get_document_logs(document_id):
     Returns a list of log dicts sorted by timestamp (newest first).
     """
     dynamodb = get_resource('dynamodb')
+    if dynamodb is None:
+        return []
     table = dynamodb.Table(DYNAMODB_TABLE)
     from boto3.dynamodb.conditions import Attr
     try:
@@ -282,6 +320,9 @@ def trigger_lambda_process(payload):
     """
     import json
     lambda_client = get_client('lambda')
+    if lambda_client is None:
+        print("[Lambda SKIPPED] No valid AWS client.")
+        return None
     try:
         response = lambda_client.invoke(
             FunctionName=LAMBDA_FUNCTION_NAME,
