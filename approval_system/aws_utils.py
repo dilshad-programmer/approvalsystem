@@ -67,6 +67,10 @@ def upload_to_s3(file_obj, s3_key):
             Params={'Bucket': bucket, 'Key': s3_key},
             ExpiresIn=3600
         )
+    except ClientError as ce:
+        error_code = ce.response.get('Error', {}).get('Code', 'Unknown')
+        print(f"[AWS ERROR] S3 ClientError ({error_code}): {ce}")
+        return None
     except Exception as e:
         print(f"[AWS ERROR] S3 Upload: {e}")
         return None
