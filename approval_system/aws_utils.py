@@ -13,7 +13,7 @@ import os
 import datetime
 import uuid
 import threading
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from botocore.exceptions import ClientError
 from dotenv import load_dotenv
 
@@ -28,7 +28,7 @@ def _safe_decimal(value, default=0):
         if value is None:
             return Decimal(str(default))
         return Decimal(str(value))
-    except (ValueError, TypeError, decimal.InvalidOperation):
+    except (ValueError, TypeError, InvalidOperation):
         return Decimal(str(default))
 
 # ── Boto3 client/resource factory (LAZY) ──────────────────────────────────────
