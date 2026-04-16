@@ -15,9 +15,7 @@ import os
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
-# override=True ensures freshly deployed .env always takes precedence
-# over any stale values cached in the EB container environment
-load_dotenv(override=True)
+load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -162,7 +160,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 AWS_ACCESS_KEY_ID     = os.getenv('AWS_ACCESS_KEY_ID')
 AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY')
 AWS_SESSION_TOKEN     = os.getenv('AWS_SESSION_TOKEN')
-AWS_REGION            = os.getenv('AWS_REGION', 'us-west-2')
+AWS_REGION            = os.getenv('AWS_REGION', 'us-east-1')
 
 # S3
 AWS_STORAGE_BUCKET_NAME = os.getenv('AWS_STORAGE_BUCKET_NAME')

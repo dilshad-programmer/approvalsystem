@@ -81,7 +81,8 @@ def login_view(request):
 
             # Get role safely — create profile if missing
             try:
-                profile, _ = user.userprofile.__class__.objects.get_or_create(user=user)
+                from .models import UserProfile
+                profile, _ = UserProfile.objects.get_or_create(user=user)
                 role = profile.role
             except Exception:
                 role = 'REQUESTER'
@@ -282,7 +283,7 @@ def upload_document(request):
 @login_required
 def process_approval(request, request_id):
     """Handles Approval/Rejection actions by Managers."""
-    app_req = ApprovalRequest.objects.get(id=request_id)
+    app_req = get_object_or_404(ApprovalRequest, id=request_id)
     
     if request.method == 'POST':
         action = request.POST.get('action') # 'APPROVED' or 'REJECTED'
@@ -334,7 +335,7 @@ def process_approval(request, request_id):
 
 @login_required
 def document_history(request, doc_id):
-    doc = Document.objects.get(id=doc_id)
+    doc = get_object_or_404(Document, id=doc_id)
     # Fetch real logs from DynamoDB
     cloud_logs = get_document_logs(doc.id)
     # Ensure pre-signed URL is attached to the document
