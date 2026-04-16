@@ -15,7 +15,9 @@ import os
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
-load_dotenv()
+# override=True ensures freshly deployed .env always takes precedence
+# over any stale values cached in the EB container environment
+load_dotenv(override=True)
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
