@@ -16,12 +16,12 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: '3.9'
-      - name: Install flake8
+      - name: Install dependencies
         run: pip install flake8
-      - name: Run Flake8 (errors only)
-        run: flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-      - name: Run Flake8 (warnings)
-        run: flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+      - name: Run Flake8
+        run: |
+          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+          flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
 
   test:
     name: Django Tests
@@ -41,12 +41,10 @@ jobs:
       - name: Run Tests
         run: python manage.py test
         env:
-          ENV: test
           AWS_ACCESS_KEY_ID: testing
           AWS_SECRET_ACCESS_KEY: testing
           AWS_REGION: us-east-1
           DJANGO_SECRET_KEY: ci-test-key
-          DJANGO_DEBUG: "False"
 
   deploy-ebs:
     name: Deploy to Elastic Beanstalk
@@ -56,31 +54,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
-          aws-region: us-east-1
-
-      - name: Verify AWS credentials
-        run: |
-          echo "Verifying AWS identity..."
-          aws sts get-caller-identity
-          echo "Credentials verified successfully."
-
       - name: Generate deployment package
-        run: |
-          zip -r deploy.zip . \
-            -x "*.git*" \
-            -x ".venv/*" \
-            -x "__pycache__/*" \
-            -x "*.pyc" \
-            -x "db.sqlite3" \
-            -x "*.log" \
-            -x "logs_extracted/*" \
-            -x "scratch/*"
+        run: zip -r deploy.zip . -x "*.git*" -x ".venv/*" -x "__pycache__/*" -x "*.pyc" -x "db.sqlite3"
 
       - name: Deploy to Elastic Beanstalk
         uses: einaregilsson/beanstalk-deploy@v22
@@ -95,3 +70,4 @@ jobs:
           deployment_package: deploy.zip
           existing_bucket_name: elasticbeanstalk-us-east-1-590183817281
           wait_for_environment_recovery: 180
+          use_existing_version_if_available: true

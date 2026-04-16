@@ -12,16 +12,10 @@ https://docs.djangoproject.com/en/3.2/ref/settings/
 
 from pathlib import Path
 import os
-import logging
 from dotenv import load_dotenv
 
-# Only load .env in local development.
-# On Elastic Beanstalk, ENV=production is set via .ebextensions and
-# boto3 uses the IAM LabRole instance profile automatically.
-if os.getenv('ENV') != 'production':
-    load_dotenv()
-
-logger = logging.getLogger(__name__)
+# Load environment variables from .env file
+load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
