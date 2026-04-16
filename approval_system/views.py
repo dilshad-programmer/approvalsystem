@@ -232,7 +232,7 @@ def upload_document(request):
         if file:
             # 1. Upload to S3
             s3_key = f"documents/{uuid.uuid4()}_{file.name}"
-            s3_url, error_msg = upload_to_s3(file, s3_key)
+            s3_url = upload_to_s3(file, s3_key)
 
             if s3_url:
                 # 2. Save metadata in Django
@@ -274,8 +274,7 @@ def upload_document(request):
                 messages.success(request, "Submission Successful: The document has been securely stored and queued for administrative review.")
                 return redirect('request_dashboard')
             else:
-                messages.error(request, f"S3 Upload failed: {error_msg}")
-
+                messages.error(request, "S3 Upload failed. Check your AWS config.")
         
     approvers = User.objects.filter(userprofile__role='APPROVER')
     return render(request, 'approval_system/upload.html', {'approvers': approvers})

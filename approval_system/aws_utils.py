@@ -59,7 +59,7 @@ def get_resource(service_name):
 def upload_to_s3(file_obj, s3_key):
     """
     Uploads a file object to S3.
-    Returns (url, None) on success, or (None, error_message) on failure.
+    Returns a pre-signed URL (valid 1 hour) so files stay private and secure.
     """
     s3 = get_client('s3')
     try:
@@ -70,19 +70,16 @@ def upload_to_s3(file_obj, s3_key):
             ExtraArgs={'ContentType': getattr(file_obj, 'content_type', 'application/octet-stream')}
         )
         print(f"[S3] Uploaded: s3://{S3_BUCKET}/{s3_key}")
+        # Return a pre-signed URL valid for 1 hour
         url = s3.generate_presigned_url(
             'get_object',
             Params={'Bucket': S3_BUCKET, 'Key': s3_key},
             ExpiresIn=3600
         )
-        return url, None
+        return url
     except ClientError as e:
-        error_msg = e.response['Error']['Message']
-        print(f"[S3 ERROR] Upload failed: {error_msg}")
-        return None, error_msg
-    except Exception as e:
-        print(f"[S3 ERROR] Unexpected error: {str(e)}")
-        return None, str(e)
+        print(f"[S3 ERROR] Upload failed: {e}")
+        return None
 
 
 def generate_presigned_url(s3_key, expiry=3600):
