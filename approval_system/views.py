@@ -13,26 +13,44 @@ from .aws_utils import (
 )
 from django.views.decorators.csrf import csrf_exempt
 import uuid
+import logging
+
+logger = logging.getLogger(__name__)
 
 # Helper to check roles
 def is_admin(user):
-    return user.is_authenticated and user.userprofile.role == 'ADMIN'
+    try:
+        return user.is_authenticated and user.userprofile.role == 'ADMIN'
+    except:
+        return False
 
 def is_requester(user):
-    return user.is_authenticated and user.userprofile.role == 'REQUESTER'
+    try:
+        return user.is_authenticated and user.userprofile.role == 'REQUESTER'
+    except:
+        return False
 
 def is_approver(user):
-    return user.is_authenticated and user.userprofile.role == 'APPROVER'
+    try:
+        return user.is_authenticated and user.userprofile.role == 'APPROVER'
+    except:
+        return False
 
 # --- Authentication Views ---
 
 def home_view(request):
     """Public landing page."""
-    if request.user.is_authenticated:
-        role = request.user.userprofile.role
-        if role == 'ADMIN': return redirect('admin_dashboard')
-        elif role == 'APPROVER': return redirect('approver_dashboard')
-        else: return redirect('request_dashboard')
+    try:
+        if request.user.is_authenticated:
+            try:
+                role = request.user.userprofile.role
+                if role == 'ADMIN': return redirect('admin_dashboard')
+                elif role == 'APPROVER': return redirect('approver_dashboard')
+                else: return redirect('request_dashboard')
+            except:
+                return redirect('request_dashboard')
+    except:
+        pass
     return render(request, 'approval_system/index.html')
 
 def register_view(request):
@@ -40,7 +58,7 @@ def register_view(request):
         username = request.POST.get('username')
         email = request.POST.get('email')
         password = request.POST.get('password')
-        role = 'REQUESTER' # Default role for all new registrations
+        role = 'REQUESTER' 
 
         # 1. Register in Cognito
         cognito_resp = register_user(username, password, email)
@@ -48,17 +66,18 @@ def register_view(request):
             messages.error(request, f"AWS Cognito Error: {cognito_resp['Error']}")
             return render(request, 'approval_system/register.html')
         
-        if not User.objects.filter(username=username).exists():
-            user = User.objects.create_user(username=username, email=email, password=password)
-            UserProfile.objects.create(user=user, role=role)
-            
-            # --- Audit Log: DynamoDB ---
-            log_workflow_action(0, "USER_REGISTERED", username, f"Account created with role: {role} (Cognito Sync: {'Success' if cognito_resp else 'Skipped'})")
-            
-            messages.success(request, "Registration Complete: Your account has been provisioned. You may now proceed to log in.")
-            return redirect('login')
-        else:
-            messages.error(request, "Username already exists in local database.")
+        try:
+            if not User.objects.filter(username=username).exists():
+                user = User.objects.create_user(username=username, email=email, password=password)
+                UserProfile.objects.create(user=user, role=role)
+                log_workflow_action(0, "USER_REGISTERED", username, f"Account created with role: {role}")
+                messages.success(request, "Registration Complete: Your account has been provisioned. You may now proceed to log in.")
+                return redirect('login')
+            else:
+                messages.error(request, "Username already exists in local database.")
+        except Exception as e:
+            logger.warning(f"Registration DB Error: {e}")
+            messages.error(request, "Database error during registration. Please try again.")
             
     return render(request, 'approval_system/register.html')
 
@@ -67,38 +86,27 @@ def login_view(request):
         username = request.POST.get('username')
         password = request.POST.get('password')
 
-        # 1. Try local Django authentication first (always reliable)
-        user = authenticate(request, username=username, password=password)
-
-        if user is not None:
-            login(request, user)
-
-            # Audit Log (non-blocking — won't crash login if AWS is down)
-            try:
+        try:
+            user = authenticate(request, username=username, password=password)
+            if user is not None:
+                login(request, user)
                 log_workflow_action(0, "USER_LOGIN", username, "User logged in")
-            except Exception:
-                pass
+                
+                try:
+                    role = user.userprofile.role
+                except:
+                    role = 'REQUESTER'
 
-            # Get role safely — create profile if missing
-            try:
-                profile, _ = user.userprofile.__class__.objects.get_or_create(user=user)
-                role = profile.role
-            except Exception:
-                role = 'REQUESTER'
-
-            # Redirect based on role
-            if role == 'ADMIN':
-                return redirect('admin_dashboard')
-            elif role == 'APPROVER':
-                return redirect('approver_dashboard')
+                if role == 'ADMIN': return redirect('admin_dashboard')
+                elif role == 'APPROVER': return redirect('approver_dashboard')
+                else: return redirect('request_dashboard')
             else:
-                return redirect('request_dashboard')
-        else:
-            messages.error(request, "Invalid username or password.")
+                messages.error(request, "Invalid username or password.")
+        except Exception as e:
+            logger.warning(f"Login Error: {e}")
+            messages.error(request, "An unexpected error occurred during login.")
 
     return render(request, 'approval_system/login.html')
-
-
 
 def logout_view(request):
     logout(request)
@@ -111,11 +119,8 @@ def verify_view(request):
         code = request.POST.get('code')
         
         resp = confirm_user(username, code)
-        
         if resp and 'Error' not in resp:
-            # --- Audit Log: DynamoDB ---
             log_workflow_action(0, "USER_VERIFIED", username, "Account confirmed via verification code")
-            
             messages.success(request, "Verification Successful: Your account is now confirmed. You may proceed to log in.")
             return redirect('login')
         else:
@@ -128,20 +133,27 @@ def verify_view(request):
 
 @login_required
 def request_dashboard(request):
-    docs = Document.objects.filter(uploader=request.user).order_by('-uploaded_at')
-    # Generate fresh pre-signed URLs for display
-    for doc in docs:
-        doc.fresh_url = generate_presigned_url(doc.s3_key)
+    try:
+        docs = Document.objects.filter(uploader=request.user).order_by('-uploaded_at')
+        # Generate fresh pre-signed URLs for display
+        for doc in docs:
+            doc.fresh_url = generate_presigned_url(doc.s3_key)
+    except Exception as e:
+        logger.warning(f"Request Dashboard Error: {e}")
+        docs = []
     return render(request, 'approval_system/dashboard_requester.html', {'documents': docs})
 
 @login_required
 def approver_dashboard(request):
     """Approver / Manager Dashboard."""
     if not is_approver(request.user): return redirect('login')
-    # Show requests assigned to this manager that are PENDING
-    requests = ApprovalRequest.objects.filter(approver=request.user, status='PENDING')
-    for req in requests:
-        req.document.fresh_url = generate_presigned_url(req.document.s3_key)
+    try:
+        requests = ApprovalRequest.objects.filter(approver=request.user, status='PENDING')
+        for req in requests:
+            req.document.fresh_url = generate_presigned_url(req.document.s3_key)
+    except Exception as e:
+        logger.warning(f"Approver Dashboard Error: {e}")
+        requests = []
     return render(request, 'approval_system/dashboard_approver.html', {'requests': requests})
 
 @login_required
@@ -149,15 +161,22 @@ def admin_dashboard(request):
     """Level 2 Admin Dashboard."""
     if not is_admin(request.user): return redirect('login')
     
-    # Docs needing approval (Pending)
-    pending_approvals = ApprovalRequest.objects.filter(status='PENDING')
-    for req in pending_approvals:
-        req.document.fresh_url = generate_presigned_url(req.document.s3_key)
-        
-    all_docs = Document.objects.all().order_by('-uploaded_at')
-    for doc in all_docs:
-        doc.fresh_url = generate_presigned_url(doc.s3_key)
-    all_users = User.objects.all()
+    pending_approvals = []
+    all_docs = []
+    all_users = []
+    
+    try:
+        pending_approvals = list(ApprovalRequest.objects.filter(status='PENDING'))
+        for req in pending_approvals:
+            req.document.fresh_url = generate_presigned_url(req.document.s3_key)
+            
+        all_docs = list(Document.objects.all().order_by('-uploaded_at'))
+        for doc in all_docs:
+            doc.fresh_url = generate_presigned_url(doc.s3_key)
+            
+        all_users = list(User.objects.all())
+    except Exception as e:
+        logger.warning(f"Admin Dashboard Error: {e}")
     
     return render(request, 'approval_system/dashboard_admin.html', {
         'pending_approvals': pending_approvals,
@@ -167,214 +186,156 @@ def admin_dashboard(request):
 
 @login_required
 def update_user_role(request, user_id):
-    """
-    Admin-only action to promote/change user roles.
-    """
     if not is_admin(request.user):
         messages.error(request, "Unauthorized. Admin access required.")
         return redirect('admin_dashboard')
     
-    target_user = get_object_or_404(User, id=user_id)
-    new_role = request.POST.get('role')
-    
-    if new_role in [role[0] for role in ROLE_CHOICES]:
-        profile, created = UserProfile.objects.get_or_create(user=target_user)
-        old_role = profile.role
-        profile.role = new_role
-        profile.save()
-
-        # --- Audit Log: DynamoDB ---
-        log_workflow_action(0, "USER_ROLE_UPDATED", request.user.username, f"Admin updated {target_user.username} from {old_role} to {new_role}")
+    try:
+        target_user = get_object_or_404(User, id=user_id)
+        new_role = request.POST.get('role')
         
-        messages.success(request, f"User {target_user.username} updated to {new_role}.")
-    else:
-        messages.error(request, "Invalid role selected.")
+        if new_role in [role[0] for role in ROLE_CHOICES]:
+            profile, _ = UserProfile.objects.get_or_create(user=target_user)
+            old_role = profile.role
+            profile.role = new_role
+            profile.save()
+            log_workflow_action(0, "USER_ROLE_UPDATED", request.user.username, f"Admin updated {target_user.username} from {old_role} to {new_role}")
+            messages.success(request, f"User {target_user.username} updated to {new_role}.")
+        else:
+            messages.error(request, "Invalid role selected.")
+    except Exception as e:
+        logger.warning(f"Update Role Error: {e}")
+        messages.error(request, "Database error while updating user role.")
         
     return redirect('admin_dashboard')
 
 @login_required
 def delete_user_view(request, user_id):
-    """
-    Admin-only action to permanently delete a user and their cloud profile.
-    """
     if not is_admin(request.user):
         messages.error(request, "Unauthorized. Admin access required.")
         return redirect('admin_dashboard')
     
-    target_user = get_object_or_404(User, id=user_id)
-    
-    # 1. Protection Check: Prevent deleting self
-    if target_user == request.user:
-        messages.error(request, "Security Restriction: You cannot delete your own administrative account.")
-        return redirect('admin_dashboard')
-    
-    # 2. Delete from Cognito
-    delete_cognito_user(target_user.username)
-    
-    # 3. Audit Logging
-    log_workflow_action(0, "USER_DELETED", request.user.username, f"Admin deleted account: {target_user.username}")
-    
-    # 4. Local Deletion
-    target_user.delete()
-    
-    messages.success(request, f"Process Complete: Account '{target_user.username}' and associated cloud metadata have been removed.")
+    try:
+        target_user = get_object_or_404(User, id=user_id)
+        if target_user == request.user:
+            messages.error(request, "Security Restriction: You cannot delete your own administrative account.")
+            return redirect('admin_dashboard')
+        
+        delete_cognito_user(target_user.username)
+        log_workflow_action(0, "USER_DELETED", request.user.username, f"Admin deleted account: {target_user.username}")
+        target_user.delete()
+        messages.success(request, f"Process Complete: Account '{target_user.username}' and associated cloud metadata have been removed.")
+    except Exception as e:
+        logger.warning(f"Delete User Error: {e}")
+        messages.error(request, "Database error during user deletion.")
+        
     return redirect('admin_dashboard')
 
 @login_required
 def upload_document(request):
     if request.method == 'POST':
-        title = request.POST.get('title')
-        description = request.POST.get('description')
-        category = request.POST.get('category')
-        approver_id = request.POST.get('approver_id')
-        file = request.FILES.get('document_file')
+        try:
+            title = request.POST.get('title')
+            description = request.POST.get('description')
+            category = request.POST.get('category')
+            approver_id = request.POST.get('approver_id')
+            file = request.FILES.get('document_file')
 
-        if file:
-            # 1. Upload to S3
-            s3_key = f"documents/{uuid.uuid4()}_{file.name}"
-            s3_url = upload_to_s3(file, s3_key)
+            if file:
+                s3_key = f"documents/{uuid.uuid4()}_{file.name}"
+                s3_url = upload_to_s3(file, s3_key)
 
-            if s3_url:
-                # 2. Save metadata in Django
-                doc = Document.objects.create(
-                    title=title,
-                    description=description,
-                    category=category,
-                    file_name=file.name,
-                    s3_key=s3_key,
-                    s3_url=s3_url,
-                    uploader=request.user
-                )
-
-                # 3. Create Approval Request
-                approver = User.objects.get(id=approver_id)
-                ApprovalRequest.objects.create(document=doc, approver=approver)
-
-                # 4. Log to DynamoDB
-                log_workflow_action(doc.id, "UPLOADED", request.user.username, "Initial upload")
-
-                # 5. Notify via SNS
-                send_sns_notification(
-                    "New Approval Request",
-                    f"A new document '{title}' has been submitted by {request.user.username} for approval by {approver.username}."
-                )
-
-                # 6. Trigger Lambda for background processing
-                lambda_payload = {
-                    'Records': [{
-                        'eventSource': 'aws:s3',
-                        's3': {
-                            'bucket': {'name': doc.s3_key.split('/')[0]}, # Simple simulation
-                            'object': {'key': doc.s3_key}
-                        }
-                    }]
-                }
-                trigger_lambda_process(lambda_payload)
-
-                messages.success(request, "Submission Successful: The document has been securely stored and queued for administrative review.")
-                return redirect('request_dashboard')
-            else:
-                messages.error(request, "S3 Upload failed. Check your AWS config.")
+                if s3_url:
+                    doc = Document.objects.create(
+                        title=title, description=description, category=category,
+                        file_name=file.name, s3_key=s3_key, s3_url=s3_url, uploader=request.user
+                    )
+                    approver = User.objects.get(id=approver_id)
+                    ApprovalRequest.objects.create(document=doc, approver=approver)
+                    
+                    log_workflow_action(doc.id, "UPLOADED", request.user.username, "Initial upload")
+                    send_sns_notification("New Approval Request", f"A new document '{title}' has been submitted.")
+                    
+                    trigger_lambda_process({'document_id': doc.id, 'action': 'UPLOAD'})
+                    messages.success(request, "Submission Successful: The document has been securely stored.")
+                    return redirect('request_dashboard')
+                else:
+                    messages.error(request, "S3 Upload failed.")
+        except Exception as e:
+            logger.warning(f"Upload Document Error: {e}")
+            messages.error(request, "An unexpected error occurred during upload.")
         
-    approvers = User.objects.filter(userprofile__role='APPROVER')
+    try:
+        approvers = User.objects.filter(userprofile__role='APPROVER')
+    except:
+        approvers = []
     return render(request, 'approval_system/upload.html', {'approvers': approvers})
 
 @login_required
 def process_approval(request, request_id):
-    """Handles Approval/Rejection actions by Managers."""
-    app_req = ApprovalRequest.objects.get(id=request_id)
+    try:
+        app_req = ApprovalRequest.objects.get(id=request_id)
+    except:
+        return redirect('admin_dashboard')
     
     if request.method == 'POST':
-        action = request.POST.get('action') # 'APPROVED' or 'REJECTED'
-        comments = request.POST.get('comments')
-        user_role = request.user.userprofile.role
+        try:
+            action = request.POST.get('action') 
+            comments = request.POST.get('comments')
+            user_role = request.user.userprofile.role
 
-        if action == 'REJECTED':
-            app_req.status = 'REJECTED'
-            msg = "Document rejected."
-            # Notify via SNS
-            send_sns_notification(
-                "Document Rejected",
-                f"Document '{app_req.document.title}' (uploaded by {app_req.document.uploader.username}) has been rejected. Comments: {comments}"
-            )
-        elif action == 'APPROVED':
-            app_req.status = 'APPROVED'
-            msg = "Review Complete: The document has been officially approved."
-            # Notify via SNS
-            send_sns_notification(
-                "Document Approved",
-                f"Document '{app_req.document.title}' (uploaded by {app_req.document.uploader.username}) has been approved."
-            )
-        else:
-            messages.error(request, "Invalid action.")
-            return redirect('login')
+            app_req.status = action
+            app_req.comments = comments
+            app_req.save()
 
-        app_req.comments = comments
-        app_req.save()
+            log_workflow_action(app_req.document.id, action, request.user.username, comments)
+            send_sns_notification(f"Document {action}", f"Document '{app_req.document.title}' has been {action}.")
+            trigger_lambda_process({'document_id': app_req.document.id, 'action': action})
 
-        # --- AWS Lambda Integration: Trigger Background Workflow ---
-        if app_req.status in ['APPROVED', 'REJECTED']:
-            payload = {
-                'document_id': app_req.document.id,
-                'action': action,
-                'user': request.user.username,
-                'timestamp': str(timezone.now())
-            }
-            trigger_lambda_process(payload)
+            messages.success(request, f"Review Complete: Document {action}.")
+            return redirect('admin_dashboard' if user_role == 'ADMIN' else 'approver_dashboard')
+        except Exception as e:
+            logger.warning(f"Process Approval Error: {e}")
+            messages.error(request, "Database error during processing.")
 
-        # Log to DynamoDB
-        log_workflow_action(app_req.document.id, action, request.user.username, comments)
-
-        messages.success(request, msg)
-        return redirect('admin_dashboard' if user_role == 'ADMIN' else 'approver_dashboard')
-
-    # Generate fresh pre-signed URL for the preview link
     app_req.document.fresh_url = generate_presigned_url(app_req.document.s3_key)
     return render(request, 'approval_system/process_approval.html', {'request': app_req})
 
 @login_required
 def document_history(request, doc_id):
-    doc = Document.objects.get(id=doc_id)
-    # Fetch real logs from DynamoDB
-    cloud_logs = get_document_logs(doc.id)
-    # Ensure pre-signed URL is attached to the document
-    doc.fresh_url = generate_presigned_url(doc.s3_key)
-    return render(request, 'approval_system/history.html', {
-        'document': doc, 
-        'cloud_logs': cloud_logs
-    })
+    try:
+        doc = Document.objects.get(id=doc_id)
+        cloud_logs = get_document_logs(doc.id)
+        doc.fresh_url = generate_presigned_url(doc.s3_key)
+    except:
+        doc = None
+        cloud_logs = []
+    return render(request, 'approval_system/history.html', {'document': doc, 'cloud_logs': cloud_logs})
 
 @login_required
 def delete_document(request, doc_id):
-    """Deletes a document from Database and physical S3 storage."""
-    doc = get_object_or_404(Document, id=doc_id)
-    
-    # Allow only Admin or the Uploader to delete
-    if not is_admin(request.user) and doc.uploader != request.user:
-        messages.error(request, "Unauthorized to delete this document.")
-        return redirect('request_dashboard')
+    try:
+        doc = get_object_or_404(Document, id=doc_id)
+        if not is_admin(request.user) and doc.uploader != request.user:
+            messages.error(request, "Unauthorized to delete.")
+            return redirect('request_dashboard')
 
-    if request.method == 'POST':
-        # 1. Delete from S3
-        if delete_from_s3(doc.s3_key):
-            # 2. Log deletion to DynamoDB
-            log_workflow_action(doc.id, "DELETED", request.user.username, "Document permanently removed")
-            
-            # 3. Delete from Django Database
-            doc.delete()
-            messages.success(request, "Process Complete: The document and its associated cloud storage have been permanently removed.")
-        else:
-            messages.error(request, "Failed to delete file from S3 storage.")
-        
-        return redirect('admin_dashboard' if is_admin(request.user) else 'request_dashboard')
+        if request.method == 'POST':
+            if delete_from_s3(doc.s3_key):
+                log_workflow_action(doc.id, "DELETED", request.user.username)
+                doc.delete()
+                messages.success(request, "Document permanently removed.")
+            else:
+                messages.error(request, "Failed to delete from S3.")
+            return redirect('admin_dashboard' if is_admin(request.user) else 'request_dashboard')
+    except Exception as e:
+        logger.warning(f"Delete Document Error: {e}")
+        messages.error(request, "Database error during deletion.")
 
     return render(request, 'approval_system/confirm_delete.html', {'document': doc})
 
 @login_required
 def service_check(request):
-    """Admin-only view to verify AWS service health."""
-    if not is_admin(request.user):
-        return redirect('login')
-    
+    if not is_admin(request.user): return redirect('login')
     status = check_aws_connectivity()
     return render(request, 'approval_system/service_check.html', {'status': status})

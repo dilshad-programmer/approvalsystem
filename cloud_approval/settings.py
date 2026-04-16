@@ -14,8 +14,10 @@ from pathlib import Path
 import os
 from dotenv import load_dotenv
 
-# Load environment variables from .env file
-load_dotenv()
+# Load environment variables from .env file (Local development only)
+# On Elastic Beanstalk, we use environment variables set in .ebextensions or software config.
+if os.getenv('ENV') != 'production':
+    load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
